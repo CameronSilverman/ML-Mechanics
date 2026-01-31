@@ -1,0 +1,35 @@
+import tensorflow as tf
+import tensorflow.keras.layers as tfl
+from tensorflow.keras import datasets, models
+import matplotlib.pyplot as plt
+
+def my_model(inputs):
+    
+
+    model = models.Model(inputs, x, name="NewModel")
+
+    return model
+
+#Load normalized input data
+
+#Define input format
+inputs = tf.keras.Input(shape=(32, 32, 3))
+
+#Feed inputs and get architecture
+model = my_model(inputs)
+model.summary()
+
+#Compile model
+model.compile(optimizer='adam',
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                metrics=['accuracy'])
+
+#Train model and save history
+history = model.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels))
+
+#Evaluate model
+test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
+
+#Print results
+print("Test accuracy: " + str(test_acc))
+print("Test loss: " + str(test_loss))

@@ -1,0 +1,4 @@
+    def Conv2D_MaxPool2D_1(x, filters, kernel_size, activation, pool_kernel_size):
+        x = tfl.Conv2D(filters, kernel_size, activation=activation)(x)
+        x = tfl.MaxPool2D(pool_kernel_size)(x)
+        return x
