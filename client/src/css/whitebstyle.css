@@ -1,0 +1,102 @@
+:root{
+    --colorBlue:rgb(78, 189, 253);
+    --colorTan:rgb(235, 235, 235);
+    --colorBlack: rgb(0, 0, 0);
+    --headerBackground:var(--colorBlack);
+    --markersAreaBackground:var(--colorTan);
+    /* --background:linear-gradient(to bottom, var(--colorBlack), var(--colorTan)); */
+    --font:'Courier New', Courier, monospace;
+    --whiteboardHeaderHeight:5%;
+    --markersHeight:40%;
+    --whiteboardHeight:calc(100% - var(--headerHeight) - var(--markersHeight));
+}
+html{
+    width:100%;
+    height:100%;
+    margin:0;
+}
+body {
+    background-color:var(--colorTan);
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-div{
+    display: flex;
+    flex-direction: column;
+    width:100%;
+    height:100%;
+    z-index: 0;
+}
+
+.whiteboard-header{
+    background-color:var(--headerBackground);
+    /* background-image:var(--headerBackground); */
+    display: flex;
+    flex-direction: row;
+    /* justify-content: center;
+    align-items: center; */
+    width: 100%;
+    height: var(--whiteboardHeaderHeight);
+    z-index: 3;
+    /* padding-bottom:20px; */
+}
+.websiteTitle{
+    color:var(--colorTan);
+    font-family:var(--font);
+    font-size:50px;
+    margin-bottom: 0px;
+}
+.navigation{
+    margin:0;
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+    align-items: center;
+    width: 100%;
+    padding:0px 0px;
+    z-index: 3;
+}
+.navLinks{
+    color:var(--colorTan);
+    padding:0px 10px;
+    font-family:var(--font);
+    font-size:20px;
+    font-weight:bold;
+    text-decoration:none;
+    z-index:3;
+}
+.compile-div{
+    margin:0;
+    display: flex;
+    flex-direction: row;
+    justify-content: right;
+    align-items: center;
+    width: 100%;
+    padding:0px 0px;
+    z-index: 3;
+}
+
+.whiteboard-container{
+    display: flex;
+    margin: 0;
+    width: 100%;
+    height: var(--whiteboardHeight);
+    /* border: 1px solid #000000; */
+    background-color: #FFFFFF;
+    z-index:0;
+}
+
+.markers-area{
+    display: flex;
+    flex-direction: row;
+    overflow:auto;
+    width: 100%;
+    height: var(--markersHeight);
+    z-index:3;
+    background-color: var(--markersAreaBackground);
+    /* border: 1px solid #000000; */
+}
