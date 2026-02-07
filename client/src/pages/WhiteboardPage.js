@@ -1,27 +1,24 @@
-import React from 'react';
-import {Link} from 'react-router-dom';
-import '../css/whitebstyle.css';
-import WhiteboardContainer from  '../whiteboard_comps/whiteboard';
-import MarkersContainer from '../whiteboard_comps/markers';
+import React from "react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import Sidebar from "../components/Sidebar";
+import Canvas from "../components/Canvas";
 
-function Whiteboard() {
+const WhiteboardPage = () => {
   return (
-    <div class="full-div">
-        <div class="whiteboard-header">
-            <div class="navigation">
-                <Link class="navLinks" to="/">Home</Link>
-            </div>
-            <div class="compile-div">
-                <Link class="navLinks" >Compile</Link>
-            </div>
+    <DndProvider backend={HTML5Backend}>
+      <div className="whiteboard-page">
+        <Sidebar />
+        <div className="canvas-wrapper">
+          <div className="canvas-toolbar">
+            <span className="toolbar-title">ML Maker Studio</span>
+            <span className="toolbar-subtitle">Visual ML Pipeline Builder</span>
+          </div>
+          <Canvas />
         </div>
+      </div>
+    </DndProvider>
+  );
+};
 
-        <WhiteboardContainer />
-        
-        <MarkersContainer />
-
-    </div>
-  )
-}
-
-export default Whiteboard
+export default WhiteboardPage;
