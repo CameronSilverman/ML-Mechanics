@@ -6,6 +6,8 @@ const ML_COMPONENTS = {
       icon: "📷",
       color: "#10b981",
       defaults: { dataset: "CIFAR-10", batchSize: 32, shuffle: true },
+      inputs: [],
+      outputs: [{ id: "out", type: "data", label: "Data" }],
     },
     {
       type: "CSVLoader",
@@ -13,6 +15,8 @@ const ML_COMPONENTS = {
       icon: "📊",
       color: "#10b981",
       defaults: { filePath: "", delimiter: ",", hasHeader: true },
+      inputs: [],
+      outputs: [{ id: "out", type: "data", label: "Data" }],
     },
     {
       type: "TrainTestSplit",
@@ -20,6 +24,8 @@ const ML_COMPONENTS = {
       icon: "✂️",
       color: "#34d399",
       defaults: { testSize: 0.2, randomState: 42 },
+      inputs: [{ id: "in", type: "data", label: "Data" }],
+      outputs: [{ id: "out", type: "data", label: "Data" }],
     },
   ],
   Layers: [
@@ -29,6 +35,8 @@ const ML_COMPONENTS = {
       icon: "▣",
       color: "#3b82f6",
       defaults: { units: 128, activation: "relu" },
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "Conv2D",
@@ -36,6 +44,8 @@ const ML_COMPONENTS = {
       icon: "⊞",
       color: "#2563eb",
       defaults: { filters: 32, kernelSize: 3, activation: "relu", padding: "same" },
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "MaxPool2D",
@@ -43,6 +53,8 @@ const ML_COMPONENTS = {
       icon: "⊟",
       color: "#1d4ed8",
       defaults: { poolSize: 2 },
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "Flatten",
@@ -50,6 +62,8 @@ const ML_COMPONENTS = {
       icon: "▭",
       color: "#60a5fa",
       defaults: {},
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "Dropout",
@@ -57,6 +71,8 @@ const ML_COMPONENTS = {
       icon: "◌",
       color: "#93c5fd",
       defaults: { rate: 0.25 },
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
   ],
   Activation: [
@@ -66,6 +82,8 @@ const ML_COMPONENTS = {
       icon: "⚡",
       color: "#f59e0b",
       defaults: {},
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "Softmax",
@@ -73,6 +91,8 @@ const ML_COMPONENTS = {
       icon: "〰",
       color: "#fbbf24",
       defaults: {},
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
       type: "Sigmoid",
@@ -80,6 +100,8 @@ const ML_COMPONENTS = {
       icon: "∿",
       color: "#f97316",
       defaults: {},
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
     },
   ],
   Training: [
@@ -89,6 +111,8 @@ const ML_COMPONENTS = {
       icon: "⚙",
       color: "#8b5cf6",
       defaults: { type: "Adam", learningRate: 0.001 },
+      inputs: [],
+      outputs: [{ id: "out", type: "config", label: "Config" }],
     },
     {
       type: "LossFunction",
@@ -96,6 +120,8 @@ const ML_COMPONENTS = {
       icon: "📉",
       color: "#a78bfa",
       defaults: { type: "SparseCategoricalCrossentropy" },
+      inputs: [],
+      outputs: [{ id: "out", type: "config", label: "Config" }],
     },
     {
       type: "TrainBlock",
@@ -103,6 +129,12 @@ const ML_COMPONENTS = {
       icon: "▶",
       color: "#7c3aed",
       defaults: { epochs: 10, batchSize: 32 },
+      inputs: [
+        { id: "data", type: "data", label: "Model" },
+        { id: "optimizer", type: "config", label: "Optimizer" },
+        { id: "loss", type: "config", label: "Loss" },
+      ],
+      outputs: [{ id: "out", type: "data", label: "Trained" }],
     },
   ],
   Output: [
@@ -112,8 +144,18 @@ const ML_COMPONENTS = {
       icon: "📋",
       color: "#ef4444",
       defaults: { metrics: "accuracy" },
+      inputs: [{ id: "in", type: "data", label: "Model" }],
+      outputs: [],
     },
   ],
+};
+
+export const getComponentDef = (type) => {
+  for (const components of Object.values(ML_COMPONENTS)) {
+    const found = components.find((c) => c.type === type);
+    if (found) return found;
+  }
+  return null;
 };
 
 export default ML_COMPONENTS;
