@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Home Page ─── */
+/* â”€â”€â”€ Home Page â”€â”€â”€ */
 
 .home-page {
   height: 100vh;
@@ -96,7 +96,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* ─── Whiteboard Layout ─── */
+/* â”€â”€â”€ Whiteboard Layout â”€â”€â”€ */
 
 .whiteboard-page {
   display: flex;
@@ -104,7 +104,7 @@ body {
   width: 100vw;
 }
 
-/* ─── Sidebar ─── */
+/* â”€â”€â”€ Sidebar â”€â”€â”€ */
 
 .sidebar {
   width: 260px;
@@ -240,7 +240,7 @@ body {
   font-style: italic;
 }
 
-/* ─── Canvas Area ─── */
+/* â”€â”€â”€ Canvas Area â”€â”€â”€ */
 
 .canvas-wrapper {
   flex: 1;
@@ -317,7 +317,7 @@ body {
   line-height: 1.6;
 }
 
-/* ─── Canvas Blocks ─── */
+/* â”€â”€â”€ Canvas Blocks â”€â”€â”€ */
 
 .canvas-block {
   position: absolute;
@@ -393,7 +393,7 @@ body {
   white-space: nowrap;
 }
 
-/* ─── Ports ─── */
+/* â”€â”€â”€ Ports â”€â”€â”€ */
 
 .port {
   position: absolute;
@@ -447,7 +447,7 @@ body {
   background: rgba(139, 92, 246, 0.3);
 }
 
-/* ─── Connection Layer ─── */
+/* â”€â”€â”€ Connection Layer â”€â”€â”€ */
 
 .connection-layer {
   position: absolute;
@@ -472,7 +472,7 @@ body {
   stroke-width: 3;
 }
 
-/* ─── Toolbar Actions ─── */
+/* â”€â”€â”€ Toolbar Actions â”€â”€â”€ */
 
 .toolbar-actions {
   display: flex;
@@ -537,7 +537,7 @@ body {
   margin: 0 0.2rem;
 }
 
-/* ─── Side Panels (Code + Training) ─── */
+/* â”€â”€â”€ Side Panels (Code + Training) â”€â”€â”€ */
 
 .side-panel {
   width: 400px;
@@ -547,6 +547,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .side-panel-header {
@@ -581,7 +582,7 @@ body {
   background: var(--bg-hover);
 }
 
-/* ─── Code Panel ─── */
+/* â”€â”€â”€ Code Panel â”€â”€â”€ */
 
 .code-panel-actions {
   display: flex;
@@ -655,7 +656,23 @@ body {
   color: #60a5fa;
 }
 
-/* ─── Training Panel ─── */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: var(--accent);
+}
+
+/* â”€â”€â”€ Training Panel â”€â”€â”€ */
 
 .training-content {
   flex: 1;
@@ -774,7 +791,7 @@ body {
   color: var(--accent);
 }
 
-/* ─── Toast Notifications ─── */
+/* â”€â”€â”€ Toast Notifications â”€â”€â”€ */
 
 .toast {
   position: fixed;
@@ -819,7 +836,7 @@ body {
   }
 }
 
-/* ─── Context Menu ─── */
+/* â”€â”€â”€ Context Menu â”€â”€â”€ */
 
 .context-overlay {
   position: fixed;
@@ -872,7 +889,7 @@ body {
   margin: 3px 8px;
 }
 
-/* ─── Properties Panel ─── */
+/* â”€â”€â”€ Properties Panel â”€â”€â”€ */
 
 .properties-overlay {
   position: fixed;
@@ -1019,7 +1036,7 @@ body {
   background: #2563eb;
 }
 
-/* ─── Scrollbar ─── */
+/* â”€â”€â”€ Scrollbar â”€â”€â”€ */
 
 ::-webkit-scrollbar {
   width: 6px;

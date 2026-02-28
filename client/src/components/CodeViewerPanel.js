@@ -1,22 +1,57 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 
 const highlightPython = (code) => {
   const lines = code.split("\n");
   return lines.map((line, i) => {
-    let highlighted = line
-      // Comments
-      .replace(/(#.*)$/g, '<span class="code-comment">$1</span>')
-      // Strings (double and single quoted)
-      .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="code-string">$1</span>')
-      // Keywords
-      .replace(
-        /\b(import|from|as|def|class|return|if|else|for|in|while|True|False|None|print)\b/g,
-        '<span class="code-keyword">$1</span>'
-      )
-      // Numbers
-      .replace(/\b(\d+\.?\d*)\b/g, '<span class="code-number">$1</span>')
-      // Function calls
-      .replace(/\b(\w+)(\()/g, '<span class="code-func">$1</span>$2');
+    // Single-pass tokenizer: find strings, comments, keywords, numbers, functions
+    // and replace them all at once so they don't interfere
+    let highlighted = "";
+    let j = 0;
+    while (j < line.length) {
+      // Comment — consumes rest of line
+      if (line[j] === "#") {
+        highlighted += `<span class="code-comment">${escapeHtml(line.slice(j))}</span>`;
+        j = line.length;
+      }
+      // Double-quoted string
+      else if (line[j] === '"') {
+        const end = findStringEnd(line, j, '"');
+        highlighted += `<span class="code-string">${escapeHtml(line.slice(j, end))}</span>`;
+        j = end;
+      }
+      // Single-quoted string
+      else if (line[j] === "'") {
+        const end = findStringEnd(line, j, "'");
+        highlighted += `<span class="code-string">${escapeHtml(line.slice(j, end))}</span>`;
+        j = end;
+      }
+      // Word (keyword, function call, or plain identifier)
+      else if (/[a-zA-Z_]/.test(line[j])) {
+        let end = j;
+        while (end < line.length && /\w/.test(line[end])) end++;
+        const word = line.slice(j, end);
+        if (KEYWORDS.has(word)) {
+          highlighted += `<span class="code-keyword">${word}</span>`;
+        } else if (end < line.length && line[end] === "(") {
+          highlighted += `<span class="code-func">${word}</span>`;
+        } else {
+          highlighted += word;
+        }
+        j = end;
+      }
+      // Number
+      else if (/\d/.test(line[j])) {
+        let end = j;
+        while (end < line.length && /[\d.]/.test(line[end])) end++;
+        highlighted += `<span class="code-number">${line.slice(j, end)}</span>`;
+        j = end;
+      }
+      // Anything else (operators, whitespace, punctuation)
+      else {
+        highlighted += escapeHtml(line[j]);
+        j++;
+      }
+    }
 
     return (
       <div key={i} className="code-line">
@@ -27,8 +62,33 @@ const highlightPython = (code) => {
   });
 };
 
+const KEYWORDS = new Set([
+  "import", "from", "as", "def", "class", "return", "if", "else",
+  "for", "in", "while", "True", "False", "None", "print",
+]);
+
+const escapeHtml = (str) =>
+  str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const findStringEnd = (line, start, quote) => {
+  let i = start + 1;
+  while (i < line.length) {
+    if (line[i] === "\\") { i += 2; continue; }
+    if (line[i] === quote) return i + 1;
+    i++;
+  }
+  return line.length; // unclosed string
+};
+
+const MIN_WIDTH = 300;
+const MAX_WIDTH = 900;
+
 const CodeViewerPanel = ({ code, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(400);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(400);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -49,8 +109,45 @@ const CodeViewerPanel = ({ code, onClose }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [panelWidth]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    // Dragging left increases width, dragging right decreases
+    const delta = startX.current - e.clientX;
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+    setPanelWidth(newWidth);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
   return (
-    <div className="side-panel code-panel">
+    <div
+      className="side-panel code-panel"
+      style={{ width: panelWidth, minWidth: panelWidth }}
+    >
+      <div className="resize-handle" onMouseDown={handleMouseDown} />
       <div className="side-panel-header">
         <span className="side-panel-title">Generated Python Code</span>
         <button className="side-panel-close" onClick={onClose}>✕</button>
