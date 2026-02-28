@@ -1,4 +1,5 @@
-import { topologicalSort } from "./pipelineValidator";
+import { topologicalSort, topologicalSortFromBlocks } from "./pipelineValidator";
+import { getComponentDef } from "../data/mlComponents";
 
 const generateBlockCode = (block, connections) => {
   const p = block.properties;
@@ -106,21 +107,17 @@ const generateBlockCode = (block, connections) => {
       };
 
     case "TrainBlock": {
-      // Find connected optimizer and loss via connections
-      const optConn = connections.find(
-        (c) => c.toBlockId === block.id && c.toPort === "optimizer"
-      );
-      const lossConn = connections.find(
-        (c) => c.toBlockId === block.id && c.toPort === "loss"
-      );
+      const inputs = block.connectedInputs || {};
+      const optSource = inputs["optimizer"];
+      const lossSource = inputs["loss"];
       return {
         imports: [],
         code: [],
         trainConfig: {
           epochs: p.epochs,
           batchSize: p.batchSize,
-          optBlockId: optConn?.fromBlockId,
-          lossBlockId: lossConn?.fromBlockId,
+          optBlockId: optSource?.sourceBlockId || null,
+          lossBlockId: lossSource?.sourceBlockId || null,
         },
       };
     }
@@ -145,7 +142,8 @@ const generateBlockCode = (block, connections) => {
 export const generateCode = (blocks, connections) => {
   if (blocks.length === 0) return "# Empty pipeline - add blocks to generate code";
 
-  const sorted = topologicalSort(blocks, connections);
+  // const sorted = topologicalSort(blocks, connections);
+  const sorted = topologicalSortFromBlocks(blocks);
   const allImports = new Set();
   const layers = [];
   const preCode = [];

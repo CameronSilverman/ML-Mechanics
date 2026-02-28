@@ -76,3 +76,40 @@ export const topologicalSort = (blocks, connections) => {
 
   return sorted;
 };
+
+export const topologicalSortFromBlocks = (blocks) => {
+  const blockMap = {};
+  const inDegree = {};
+  const adj = {};
+
+  for (const b of blocks) {
+    blockMap[b.id] = b;
+    inDegree[b.id] = 0;
+    adj[b.id] = [];
+  }
+
+  // Build adjacency from each block's connectedOutputs
+  for (const b of blocks) {
+    for (const port of Object.keys(b.connectedOutputs || {})) {
+      const target = b.connectedOutputs[port];
+      adj[b.id].push(target.targetBlockId);
+      inDegree[target.targetBlockId] = (inDegree[target.targetBlockId] || 0) + 1;
+    }
+  }
+
+  const queue = [];
+  for (const id of Object.keys(inDegree)) {
+    if (inDegree[id] === 0) queue.push(id);
+  }
+
+  const sorted = [];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    sorted.push(blockMap[node]);
+    for (const neighbor of adj[node]) {
+      inDegree[neighbor]--;
+      if (inDegree[neighbor] === 0) queue.push(neighbor);
+    }
+  }
+  return sorted;
+};

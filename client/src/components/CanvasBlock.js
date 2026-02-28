@@ -2,7 +2,7 @@ import React from "react";
 import { useDrag } from "react-dnd";
 import { getComponentDef } from "../data/mlComponents";
 
-const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPortMouseUp }) => {
+const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPortMouseUp, onPortContextMenu }) => {
   const [{ isDragging }, dragRef] = useDrag({
     type: "CANVAS_BLOCK",
     item: { id: block.id, x: block.x, y: block.y },
@@ -33,9 +33,19 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
           className="port port-input"
           style={{ top: `${16 + i * 20}px` }}
           title={port.label}
+          onMouseDown={(e) => {
+            // Prevent the block drag from starting when clicking a port
+            e.stopPropagation();
+            e.preventDefault();
+          }}
           onMouseUp={(e) => {
             e.stopPropagation();
             onPortMouseUp && onPortMouseUp(block.id, port.id);
+          }}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onPortContextMenu && onPortContextMenu(block.id, port.id, "input");
           }}
         >
           <div className={`port-dot port-type-${port.type}`} />
@@ -50,8 +60,15 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
           style={{ top: `${16 + i * 20}px` }}
           title={port.label}
           onMouseDown={(e) => {
+            // Prevent the block drag from starting when clicking a port
             e.stopPropagation();
+            e.preventDefault();
             onPortMouseDown && onPortMouseDown(e, block.id, port.id);
+          }}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onPortContextMenu && onPortContextMenu(block.id, port.id, "output");
           }}
         >
           <div className={`port-dot port-type-${port.type}`} />

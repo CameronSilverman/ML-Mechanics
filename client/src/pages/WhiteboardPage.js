@@ -75,7 +75,7 @@ const WhiteboardPage = () => {
   }, [blocks, connections, showToast]);
 
   const handleViewCode = useCallback(() => {
-    const code = generateCode(blocks, connections);
+    const code = generateCode(blocks);
     setGeneratedCode(code);
     setActivePanel("code");
   }, [blocks, connections]);

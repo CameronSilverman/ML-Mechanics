@@ -43,6 +43,10 @@ const Canvas = ({
       x,
       y,
       properties: { ...componentDef.defaults },
+      // outputs: { [portId]: { targetBlockId, targetPort } },
+      // inputs:  { [portId]: { sourceBlockId, sourcePort } },
+      connectedOutputs: {},
+      connectedInputs: {},
     };
     setBlocks((prev) => [...prev, newBlock]);
   }, [setBlocks]);
@@ -54,13 +58,34 @@ const Canvas = ({
   }, [setBlocks]);
 
   const deleteBlock = useCallback((id) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    const affectedConns = connections.filter(
+      (c) => c.fromBlockId === id || c.toBlockId === id
+    );
+
+    setBlocks((prev) => {
+      const remaining = prev.filter((b) => b.id !== id);
+      return remaining.map((b) => {
+        let updated = { ...b };
+        for (const conn of affectedConns) {
+          if (conn.fromBlockId === b.id) {
+            const { [conn.fromPort]: _, ...restOutputs } = updated.connectedOutputs;
+            updated = { ...updated, connectedOutputs: restOutputs };
+          }
+          if (conn.toBlockId === b.id) {
+            const { [conn.toPort]: _, ...restInputs } = updated.connectedInputs;
+            updated = { ...updated, connectedInputs: restInputs };
+          }
+        }
+        return updated;
+      });
+    });
+
     setConnections((prev) =>
       prev.filter((c) => c.fromBlockId !== id && c.toBlockId !== id)
     );
     setContextMenu(null);
     setSelectedId(null);
-  }, [setBlocks, setConnections]);
+  }, [setBlocks, setConnections, connections]);
 
   const updateProperties = useCallback((id, properties) => {
     setBlocks((prev) =>
@@ -126,13 +151,37 @@ const Canvas = ({
         toPort: toPortId,
       };
       setConnections((prev) => [...prev, newConn]);
+
+      setBlocks((prev) =>
+        prev.map((b) => {
+          if (b.id === fromBlockId) {
+            return {
+              ...b,
+              connectedOutputs: {
+                ...b.connectedOutputs,
+                [fromPort]: { targetBlockId: toBlockId, targetPort: toPortId },
+              },
+            };
+          }
+          if (b.id === toBlockId) {
+            return {
+              ...b,
+              connectedInputs: {
+                ...b.connectedInputs,
+                [toPortId]: { sourceBlockId: fromBlockId, sourcePort: fromPort },
+              },
+            };
+          }
+          return b;
+        })
+      );
     } else {
       onToast && onToast(result.error, "error");
     }
 
     setPendingConnection(null);
     setMousePos(null);
-  }, [pendingConnection, blocks, connections, setConnections, onToast]);
+  }, [pendingConnection, blocks, connections, setConnections, setBlocks, onToast]);
 
   const handleCanvasMouseUp = useCallback(() => {
     if (pendingConnection) {
@@ -142,8 +191,43 @@ const Canvas = ({
   }, [pendingConnection]);
 
   const handleDeleteConnection = useCallback((connId) => {
+    const conn = connections.find((c) => c.id === connId);
+    if (conn) {
+      setBlocks((prev) =>
+        prev.map((b) => {
+          if (b.id === conn.fromBlockId) {
+            const { [conn.fromPort]: _, ...restOutputs } = b.connectedOutputs;
+            return { ...b, connectedOutputs: restOutputs };
+          }
+          if (b.id === conn.toBlockId) {
+            const { [conn.toPort]: _, ...restInputs } = b.connectedInputs;
+            return { ...b, connectedInputs: restInputs };
+          }
+          return b;
+        })
+      );
+    }
     setConnections((prev) => prev.filter((c) => c.id !== connId));
-  }, [setConnections]);
+  }, [setConnections, setBlocks, connections]);
+  
+  const handlePortContextMenu = useCallback((blockId, portId, direction) => {
+    const matching = connections.filter((c) => {
+      if (direction === "output") {
+        return c.fromBlockId === blockId && c.fromPort === portId;
+      } else {
+        return c.toBlockId === blockId && c.toPort === portId;
+      }
+    });
+
+    if (matching.length === 0) {
+      onToast && onToast("No connections on this port", "info");
+      return;
+    }
+
+    const idsToRemove = new Set(matching.map((c) => c.id));
+    setConnections((prev) => prev.filter((c) => !idsToRemove.has(c.id)));
+    onToast && onToast(`Removed ${matching.length} connection${matching.length > 1 ? "s" : ""}`, "info");
+  }, [connections, setConnections, onToast]);
 
   const handleContextMenu = (e, id) => {
     e.preventDefault();
@@ -200,6 +284,7 @@ const Canvas = ({
           onContextMenu={handleContextMenu}
           onPortMouseDown={handlePortMouseDown}
           onPortMouseUp={handlePortMouseUp}
+          onPortContextMenu={handlePortContextMenu}
         />
       ))}
 
