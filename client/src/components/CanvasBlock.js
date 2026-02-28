@@ -31,7 +31,7 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
         <div
           key={port.id}
           className="port port-input"
-          style={{ top: `${16 + i * 20}px` }}
+          style={{ top: `${8 + i * 20}px` }}
           title={port.label}
           onMouseDown={(e) => {
             // Prevent the block drag from starting when clicking a port
@@ -57,7 +57,7 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
         <div
           key={port.id}
           className="port port-output"
-          style={{ top: `${16 + i * 20}px` }}
+          style={{ top: `${8 + i * 20}px` }}
           title={port.label}
           onMouseDown={(e) => {
             // Prevent the block drag from starting when clicking a port

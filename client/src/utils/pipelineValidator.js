@@ -88,12 +88,14 @@ export const topologicalSortFromBlocks = (blocks) => {
     adj[b.id] = [];
   }
 
-  // Build adjacency from each block's connectedOutputs
+  // connectedOutputs is { [portId]: [{ targetBlockId, targetPort }, ...] }
   for (const b of blocks) {
     for (const port of Object.keys(b.connectedOutputs || {})) {
-      const target = b.connectedOutputs[port];
-      adj[b.id].push(target.targetBlockId);
-      inDegree[target.targetBlockId] = (inDegree[target.targetBlockId] || 0) + 1;
+      const targets = b.connectedOutputs[port] || [];
+      for (const target of targets) {
+        adj[b.id].push(target.targetBlockId);
+        inDegree[target.targetBlockId] = (inDegree[target.targetBlockId] || 0) + 1;
+      }
     }
   }
 

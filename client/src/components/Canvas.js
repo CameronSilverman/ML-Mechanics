@@ -67,13 +67,20 @@ const Canvas = ({
       return remaining.map((b) => {
         let updated = { ...b };
         for (const conn of affectedConns) {
-          if (conn.fromBlockId === b.id) {
-            const { [conn.fromPort]: _, ...restOutputs } = updated.connectedOutputs;
-            updated = { ...updated, connectedOutputs: restOutputs };
+          if (conn.fromBlockId === b.id && updated.connectedOutputs[conn.fromPort]) {
+            const filtered = updated.connectedOutputs[conn.fromPort].filter(
+              (t) => t.targetBlockId !== id
+            );
+            if (filtered.length === 0) {
+              const { [conn.fromPort]: _, ...rest } = updated.connectedOutputs;
+              updated = { ...updated, connectedOutputs: rest };
+            } else {
+              updated = { ...updated, connectedOutputs: { ...updated.connectedOutputs, [conn.fromPort]: filtered } };
+            }
           }
           if (conn.toBlockId === b.id) {
-            const { [conn.toPort]: _, ...restInputs } = updated.connectedInputs;
-            updated = { ...updated, connectedInputs: restInputs };
+            const { [conn.toPort]: _, ...rest } = updated.connectedInputs;
+            updated = { ...updated, connectedInputs: rest };
           }
         }
         return updated;
@@ -159,7 +166,10 @@ const Canvas = ({
               ...b,
               connectedOutputs: {
                 ...b.connectedOutputs,
-                [fromPort]: { targetBlockId: toBlockId, targetPort: toPortId },
+                [fromPort]: [
+                  ...(b.connectedOutputs[fromPort] || []),
+                  { targetBlockId: toBlockId, targetPort: toPortId },
+                ],
               },
             };
           }
@@ -195,13 +205,19 @@ const Canvas = ({
     if (conn) {
       setBlocks((prev) =>
         prev.map((b) => {
-          if (b.id === conn.fromBlockId) {
-            const { [conn.fromPort]: _, ...restOutputs } = b.connectedOutputs;
-            return { ...b, connectedOutputs: restOutputs };
+          if (b.id === conn.fromBlockId && b.connectedOutputs[conn.fromPort]) {
+            const filtered = b.connectedOutputs[conn.fromPort].filter(
+              (t) => !(t.targetBlockId === conn.toBlockId && t.targetPort === conn.toPort)
+            );
+            if (filtered.length === 0) {
+              const { [conn.fromPort]: _, ...rest } = b.connectedOutputs;
+              return { ...b, connectedOutputs: rest };
+            }
+            return { ...b, connectedOutputs: { ...b.connectedOutputs, [conn.fromPort]: filtered } };
           }
           if (b.id === conn.toBlockId) {
-            const { [conn.toPort]: _, ...restInputs } = b.connectedInputs;
-            return { ...b, connectedInputs: restInputs };
+            const { [conn.toPort]: _, ...rest } = b.connectedInputs;
+            return { ...b, connectedInputs: rest };
           }
           return b;
         })
@@ -224,10 +240,37 @@ const Canvas = ({
       return;
     }
 
+    // Clean block-embedded data on both sides of every removed connection
+    setBlocks((prev) =>
+      prev.map((b) => {
+        let updated = { ...b };
+        for (const conn of matching) {
+          // Clean the source block's output array
+          if (conn.fromBlockId === updated.id && updated.connectedOutputs[conn.fromPort]) {
+            const filtered = updated.connectedOutputs[conn.fromPort].filter(
+              (t) => !(t.targetBlockId === conn.toBlockId && t.targetPort === conn.toPort)
+            );
+            if (filtered.length === 0) {
+              const { [conn.fromPort]: _, ...rest } = updated.connectedOutputs;
+              updated = { ...updated, connectedOutputs: rest };
+            } else {
+              updated = { ...updated, connectedOutputs: { ...updated.connectedOutputs, [conn.fromPort]: filtered } };
+            }
+          }
+          // Clean the target block's input entry
+          if (conn.toBlockId === updated.id) {
+            const { [conn.toPort]: _, ...rest } = updated.connectedInputs;
+            updated = { ...updated, connectedInputs: rest };
+          }
+        }
+        return updated;
+      })
+    );
+
     const idsToRemove = new Set(matching.map((c) => c.id));
     setConnections((prev) => prev.filter((c) => !idsToRemove.has(c.id)));
     onToast && onToast(`Removed ${matching.length} connection${matching.length > 1 ? "s" : ""}`, "info");
-  }, [connections, setConnections, onToast]);
+  }, [connections, setConnections, setBlocks, onToast]);
 
   const handleContextMenu = (e, id) => {
     e.preventDefault();

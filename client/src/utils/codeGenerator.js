@@ -1,7 +1,7 @@
 import { topologicalSort, topologicalSortFromBlocks } from "./pipelineValidator";
 import { getComponentDef } from "../data/mlComponents";
 
-const generateBlockCode = (block, connections) => {
+const generateBlockCode = (block) => {
   const p = block.properties;
 
   switch (block.type) {
@@ -139,7 +139,7 @@ const generateBlockCode = (block, connections) => {
   }
 };
 
-export const generateCode = (blocks, connections) => {
+export const generateCode = (blocks) => {
   if (blocks.length === 0) return "# Empty pipeline - add blocks to generate code";
 
   // const sorted = topologicalSort(blocks, connections);
@@ -156,7 +156,7 @@ export const generateCode = (blocks, connections) => {
   allImports.add("import tensorflow as tf");
 
   for (const block of sorted) {
-    const result = generateBlockCode(block, connections);
+    const result = generateBlockCode(block);
     blockResults[block.id] = result;
 
     for (const imp of result.imports) allImports.add(imp);
