@@ -12,13 +12,11 @@ const getPortPosition = (block, portId, direction, blockDef) => {
   const total = ports.length;
 
   if (direction === "input") {
-    // Input ports on the left edge
     const spacing = HEADER_HEIGHT + 20;
     const startY = block.y + HEADER_HEIGHT / 2;
     const y = total === 1 ? startY : startY + idx * spacing / total;
     return { x: block.x - PORT_RADIUS, y };
   } else {
-    // Output ports on the right edge
     return { x: block.x + BLOCK_WIDTH + PORT_RADIUS, y: block.y + HEADER_HEIGHT / 2 };
   }
 };
@@ -29,7 +27,6 @@ const BezierWire = ({ x1, y1, x2, y2, color, dashed, onClick }) => {
 
   return (
     <g onClick={onClick} style={{ cursor: onClick ? "pointer" : "default" }}>
-      {/* Invisible wider hit area */}
       {onClick && (
         <path d={d} fill="none" stroke="transparent" strokeWidth={12} />
       )}
@@ -61,8 +58,7 @@ const ConnectionLayer = ({
   };
 
   return (
-    <svg className="connection-layer">
-      {/* Render established connections */}
+    <svg className="connection-layer" style={{ overflow: "visible" }}>
       {connections.map((conn) => {
         const fromBlock = blocks.find((b) => b.id === conn.fromBlockId);
         const toBlock = blocks.find((b) => b.id === conn.toBlockId);
@@ -86,7 +82,6 @@ const ConnectionLayer = ({
         );
       })}
 
-      {/* Render pending connection (dragging) */}
       {pendingConnection && mousePos && (
         <BezierWire
           x1={pendingConnection.x}

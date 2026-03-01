@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useDrop } from "react-dnd";
 import CanvasBlock from "./CanvasBlock";
 import ContextMenu from "./ContextMenu";
@@ -10,6 +10,8 @@ import { validateConnection } from "../utils/connectionRules";
 let idCounter = 0;
 export const setIdCounter = (val) => { idCounter = val; };
 export const getIdCounter = () => idCounter;
+
+const PAN_CLICK_THRESHOLD = 4;
 
 const Canvas = ({
   blocks,
@@ -23,9 +25,19 @@ const Canvas = ({
   const [selectedId, setSelectedId] = useState(null);
   const [pendingConnection, setPendingConnection] = useState(null);
   const [mousePos, setMousePos] = useState(null);
+
+  // Panning state
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const panRef = useRef({ x: 0, y: 0 });
+  const didPanRef = useRef(false);
   const canvasRef = useRef(null);
 
-  // Build a blockDefs map for ConnectionLayer
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+
   const blockDefs = {};
   for (const b of blocks) {
     const def = getComponentDef(b.type);
@@ -43,8 +55,6 @@ const Canvas = ({
       x,
       y,
       properties: { ...componentDef.defaults },
-      // outputs: { [portId]: { targetBlockId, targetPort } },
-      // inputs:  { [portId]: { sourceBlockId, sourcePort } },
       connectedOutputs: {},
       connectedInputs: {},
     };
@@ -106,11 +116,12 @@ const Canvas = ({
       const offset = monitor.getClientOffset();
       const canvasEl = document.getElementById("canvas");
       const canvasRect = canvasEl.getBoundingClientRect();
-      const x = offset.x - canvasRect.left + canvasEl.scrollLeft;
-      const y = offset.y - canvasRect.top + canvasEl.scrollTop;
+      const currentPan = panRef.current;
 
       if (item.componentDef) {
-        addBlock(item.componentDef, x - 80, y - 20);
+        const x = offset.x - canvasRect.left - currentPan.x - 80;
+        const y = offset.y - canvasRect.top - currentPan.y - 20;
+        addBlock(item.componentDef, x, y);
       } else if (item.id) {
         const delta = monitor.getDifferenceFromInitialOffset();
         moveBlock(item.id, item.x + delta.x, item.y + delta.y);
@@ -118,31 +129,80 @@ const Canvas = ({
     },
   });
 
-  // Connection interaction handlers
+  const handleMouseDown = useCallback((e) => {
+    if (pendingConnection) return;
+    if (e.button !== 0) return;
+
+    const t = e.target;
+    const isCanvasBg =
+      t.id === "canvas" ||
+      t.classList.contains("canvas-world") ||
+      t.classList.contains("canvas-placeholder") ||
+      t.classList.contains("canvas-placeholder-icon") ||
+      t.classList.contains("canvas-placeholder-text") ||
+      t.tagName === "svg";
+
+    if (!isCanvasBg) return;
+
+    setIsPanning(true);
+    didPanRef.current = false;
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+  }, [pan, pendingConnection]);
+
+  const handleMouseMove = useCallback((e) => {
+    // Panning
+    if (isPanning) {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      if (Math.abs(dx) > PAN_CLICK_THRESHOLD || Math.abs(dy) > PAN_CLICK_THRESHOLD) {
+        didPanRef.current = true;
+      }
+      setPan({
+        x: panStartRef.current.panX + dx,
+        y: panStartRef.current.panY + dy,
+      });
+      return;
+    }
+
+    // Connection dragging
+    if (!pendingConnection) return;
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left - panRef.current.x,
+      y: e.clientY - rect.top - panRef.current.y,
+    });
+  }, [isPanning, pendingConnection]);
+
+  const handleMouseUp = useCallback(() => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+    if (pendingConnection) {
+      setPendingConnection(null);
+      setMousePos(null);
+    }
+  }, [isPanning, pendingConnection]);
+
   const handlePortMouseDown = useCallback((e, blockId, portId) => {
     const block = blocks.find((b) => b.id === blockId);
     if (!block) return;
     const canvasEl = document.getElementById("canvas");
     const rect = canvasEl.getBoundingClientRect();
-    // Approximate port position: output port is on the right side of the block
-    const portX = block.x + 170 + 6; // BLOCK_WIDTH + PORT_RADIUS
-    const portY = block.y + 16; // HEADER_HEIGHT / 2
+    const portX = block.x + 170 + 6;
+    const portY = block.y + 16;
     setPendingConnection({ blockId, portId, x: portX, y: portY });
     setMousePos({
-      x: e.clientX - rect.left + canvasEl.scrollLeft,
-      y: e.clientY - rect.top + canvasEl.scrollTop,
+      x: e.clientX - rect.left - panRef.current.x,
+      y: e.clientY - rect.top - panRef.current.y,
     });
   }, [blocks]);
-
-  const handleCanvasMouseMove = useCallback((e) => {
-    if (!pendingConnection) return;
-    const canvasEl = document.getElementById("canvas");
-    const rect = canvasEl.getBoundingClientRect();
-    setMousePos({
-      x: e.clientX - rect.left + canvasEl.scrollLeft,
-      y: e.clientY - rect.top + canvasEl.scrollTop,
-    });
-  }, [pendingConnection]);
 
   const handlePortMouseUp = useCallback((toBlockId, toPortId) => {
     if (!pendingConnection) return;
@@ -193,13 +253,6 @@ const Canvas = ({
     setMousePos(null);
   }, [pendingConnection, blocks, connections, setConnections, setBlocks, onToast]);
 
-  const handleCanvasMouseUp = useCallback(() => {
-    if (pendingConnection) {
-      setPendingConnection(null);
-      setMousePos(null);
-    }
-  }, [pendingConnection]);
-
   const handleDeleteConnection = useCallback((connId) => {
     const conn = connections.find((c) => c.id === connId);
     if (conn) {
@@ -225,7 +278,7 @@ const Canvas = ({
     }
     setConnections((prev) => prev.filter((c) => c.id !== connId));
   }, [setConnections, setBlocks, connections]);
-  
+
   const handlePortContextMenu = useCallback((blockId, portId, direction) => {
     const matching = connections.filter((c) => {
       if (direction === "output") {
@@ -240,12 +293,10 @@ const Canvas = ({
       return;
     }
 
-    // Clean block-embedded data on both sides of every removed connection
     setBlocks((prev) =>
       prev.map((b) => {
         let updated = { ...b };
         for (const conn of matching) {
-          // Clean the source block's output array
           if (conn.fromBlockId === updated.id && updated.connectedOutputs[conn.fromPort]) {
             const filtered = updated.connectedOutputs[conn.fromPort].filter(
               (t) => !(t.targetBlockId === conn.toBlockId && t.targetPort === conn.toPort)
@@ -257,7 +308,6 @@ const Canvas = ({
               updated = { ...updated, connectedOutputs: { ...updated.connectedOutputs, [conn.fromPort]: filtered } };
             }
           }
-          // Clean the target block's input entry
           if (conn.toBlockId === updated.id) {
             const { [conn.toPort]: _, ...rest } = updated.connectedInputs;
             updated = { ...updated, connectedInputs: rest };
@@ -280,9 +330,32 @@ const Canvas = ({
   };
 
   const handleCanvasClick = () => {
+    // Suppress click if we just finished a pan drag
+    if (didPanRef.current) {
+      didPanRef.current = false;
+      return;
+    }
     setSelectedId(null);
     setContextMenu(null);
   };
+
+  const handleRecenter = useCallback((e) => {
+    e.stopPropagation();
+    if (blocks.length === 0) {
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    const minX = Math.min(...blocks.map((b) => b.x));
+    const maxX = Math.max(...blocks.map((b) => b.x + 170));
+    const minY = Math.min(...blocks.map((b) => b.y));
+    const maxY = Math.max(...blocks.map((b) => b.y + 100));
+    setPan({
+      x: rect.width / 2 - (minX + maxX) / 2,
+      y: rect.height / 2 - (minY + maxY) / 2,
+    });
+  }, [blocks]);
 
   const setRef = useCallback(
     (node) => {
@@ -296,20 +369,38 @@ const Canvas = ({
     <div
       id="canvas"
       ref={setRef}
-      className="canvas"
+      className={`canvas${isPanning ? " canvas-panning" : ""}`}
+      style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
       onClick={handleCanvasClick}
-      onMouseMove={handleCanvasMouseMove}
-      onMouseUp={handleCanvasMouseUp}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
-      <ConnectionLayer
-        blocks={blocks}
-        connections={connections}
-        pendingConnection={pendingConnection}
-        mousePos={mousePos}
-        blockDefs={blockDefs}
-        onDeleteConnection={handleDeleteConnection}
-      />
+      <div
+        className="canvas-world"
+        style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
+      >
+        <ConnectionLayer
+          blocks={blocks}
+          connections={connections}
+          pendingConnection={pendingConnection}
+          mousePos={mousePos}
+          blockDefs={blockDefs}
+          onDeleteConnection={handleDeleteConnection}
+        />
 
+        {blocks.map((block) => (
+          <CanvasBlock
+            key={block.id}
+            block={block}
+            isSelected={block.id === selectedId}
+            onContextMenu={handleContextMenu}
+            onPortMouseDown={handlePortMouseDown}
+            onPortMouseUp={handlePortMouseUp}
+            onPortContextMenu={handlePortContextMenu}
+          />
+        ))}
+      </div>
       {blocks.length === 0 && !pendingConnection && (
         <div className="canvas-placeholder">
           <div className="canvas-placeholder-icon">⬡</div>
@@ -319,17 +410,21 @@ const Canvas = ({
         </div>
       )}
 
-      {blocks.map((block) => (
-        <CanvasBlock
-          key={block.id}
-          block={block}
-          isSelected={block.id === selectedId}
-          onContextMenu={handleContextMenu}
-          onPortMouseDown={handlePortMouseDown}
-          onPortMouseUp={handlePortMouseUp}
-          onPortContextMenu={handlePortContextMenu}
-        />
-      ))}
+      {/* Recenter button — fixed in bottom-left of canvas */}
+      <button
+        className="recenter-btn"
+        onClick={handleRecenter}
+        title="Recenter view"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="9" cy="9" r="2" fill="currentColor" />
+          <line x1="9" y1="0.5" x2="9" y2="4" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="9" y1="14" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="0.5" y1="9" x2="4" y2="9" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="14" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
 
       {contextMenu && (
         <ContextMenu
