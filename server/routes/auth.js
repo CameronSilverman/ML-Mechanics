@@ -21,7 +21,10 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [email.toLowerCase()]
+    );
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: "An account with this email already exists" });
     }
@@ -33,10 +36,8 @@ router.post("/register", async (req, res) => {
     );
 
     const user = result.rows[0];
-    const token = signToken(user.id);
-
     res.status(201).json({
-      token,
+      token: signToken(user.id),
       user: { id: user.id, email: user.email, createdAt: user.created_at },
     });
   } catch (err) {
@@ -68,10 +69,8 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const token = signToken(user.id);
-
     res.json({
-      token,
+      token: signToken(user.id),
       user: { id: user.id, email: user.email, createdAt: user.created_at },
     });
   } catch (err) {
