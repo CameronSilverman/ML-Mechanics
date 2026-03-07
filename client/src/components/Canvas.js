@@ -28,11 +28,12 @@ const Canvas = ({
 
   // Panning state
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
+  const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const panRef = useRef({ x: 0, y: 0 });
   const didPanRef = useRef(false);
   const canvasRef = useRef(null);
+  const [panningClass, setPanningClass] = useState(false);
 
   useEffect(() => {
     panRef.current = pan;
@@ -129,7 +130,38 @@ const Canvas = ({
     },
   });
 
+  const handlePanMove = useCallback((e) => {
+    if (!isPanningRef.current) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    if (Math.abs(dx) > PAN_CLICK_THRESHOLD || Math.abs(dy) > PAN_CLICK_THRESHOLD) {
+      didPanRef.current = true;
+    }
+    setPan({
+      x: panStartRef.current.panX + dx,
+      y: panStartRef.current.panY + dy,
+    });
+  }, []);
+
+  const handlePanUp = useCallback(() => {
+    if (!isPanningRef.current) return;
+    isPanningRef.current = false;
+    setPanningClass(false);
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", handlePanMove);
+    window.removeEventListener("mouseup", handlePanUp);
+  }, [handlePanMove]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", handlePanMove);
+      window.removeEventListener("mouseup", handlePanUp);
+      document.body.style.userSelect = "";
+    };
+  }, [handlePanMove, handlePanUp]);
+
   const handleMouseDown = useCallback((e) => {
+    if (isPanningRef.current) return;
     if (pendingConnection) return;
     if (e.button !== 0) return;
 
@@ -144,32 +176,23 @@ const Canvas = ({
 
     if (!isCanvasBg) return;
 
-    setIsPanning(true);
+    isPanningRef.current = true;
+    setPanningClass(true);
     didPanRef.current = false;
     panStartRef.current = {
       x: e.clientX,
       y: e.clientY,
-      panX: pan.x,
-      panY: pan.y,
+      panX: panRef.current.x,
+      panY: panRef.current.y,
     };
-  }, [pan, pendingConnection]);
 
-  const handleMouseMove = useCallback((e) => {
-    // Panning
-    if (isPanning) {
-      const dx = e.clientX - panStartRef.current.x;
-      const dy = e.clientY - panStartRef.current.y;
-      if (Math.abs(dx) > PAN_CLICK_THRESHOLD || Math.abs(dy) > PAN_CLICK_THRESHOLD) {
-        didPanRef.current = true;
-      }
-      setPan({
-        x: panStartRef.current.panX + dx,
-        y: panStartRef.current.panY + dy,
-      });
-      return;
-    }
+    document.body.style.userSelect = "none";
 
-    // Connection dragging
+    window.addEventListener("mousemove", handlePanMove);
+    window.addEventListener("mouseup", handlePanUp);
+  }, [pendingConnection, handlePanMove, handlePanUp]);
+
+  const handleCanvasMouseMove = useCallback((e) => {
     if (!pendingConnection) return;
     const canvasEl = document.getElementById("canvas");
     const rect = canvasEl.getBoundingClientRect();
@@ -177,18 +200,14 @@ const Canvas = ({
       x: e.clientX - rect.left - panRef.current.x,
       y: e.clientY - rect.top - panRef.current.y,
     });
-  }, [isPanning, pendingConnection]);
+  }, [pendingConnection]);
 
-  const handleMouseUp = useCallback(() => {
-    if (isPanning) {
-      setIsPanning(false);
-      return;
-    }
+  const handleCanvasMouseUp = useCallback(() => {
     if (pendingConnection) {
       setPendingConnection(null);
       setMousePos(null);
     }
-  }, [isPanning, pendingConnection]);
+  }, [pendingConnection]);
 
   const handlePortMouseDown = useCallback((e, blockId, portId) => {
     const block = blocks.find((b) => b.id === blockId);
@@ -369,12 +388,12 @@ const Canvas = ({
     <div
       id="canvas"
       ref={setRef}
-      className={`canvas${isPanning ? " canvas-panning" : ""}`}
+      className={`canvas${panningClass ? " canvas-panning" : ""}`}
       style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
       onClick={handleCanvasClick}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onMouseMove={handleCanvasMouseMove}
+      onMouseUp={handleCanvasMouseUp}
     >
       <div
         className="canvas-world"
