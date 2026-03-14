@@ -4,6 +4,7 @@ import ML_COMPONENTS from "../data/mlComponents";
 
 const CATEGORY_ICONS = {
   Data: "◈",
+  Structure: "⊕",
   Layers: "◧",
   Activation: "⚡",
   Training: "▶",

@@ -28,6 +28,29 @@ const ML_COMPONENTS = {
       outputs: [{ id: "out", type: "data", label: "Data" }],
     },
   ],
+  Structure: [
+    {
+      type: "Input",
+      label: "Input",
+      icon: "→",
+      color: "#06b6d4",
+      defaults: { shape: "28,28,1" },
+      inputs: [],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
+    },
+    {
+      type: "Concatenate",
+      label: "Concatenate",
+      icon: "⇌",
+      color: "#ec4899",
+      defaults: { axis: -1 },
+      inputs: [
+        { id: "in1", type: "data", label: "Input 1" },
+        { id: "in2", type: "data", label: "Input 2" },
+      ],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
+    },
+  ],
   Layers: [
     {
       type: "Dense",
