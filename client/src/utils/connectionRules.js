@@ -32,24 +32,24 @@ export const isDuplicateConnection = (connections, fromBlockId, fromPort, toBloc
 
 export const wouldCreateCycle = (connections, fromBlockId, toBlockId) => {
   if (fromBlockId === toBlockId) return true;
+
   const adj = {};
   for (const c of connections) {
     if (!adj[c.fromBlockId]) adj[c.fromBlockId] = [];
     adj[c.fromBlockId].push(c.toBlockId);
   }
-  if (!adj[toBlockId]) adj[toBlockId] = [];
-  adj[toBlockId].push(fromBlockId);
+  // if (!adj[toBlockId]) adj[toBlockId] = [];
+  // adj[toBlockId].push(fromBlockId);
 
   const visited = new Set();
   const stack = [toBlockId];
   while (stack.length > 0) {
     const node = stack.pop();
+    if (node === fromBlockId) return true;
     if (visited.has(node)) continue;
     visited.add(node);
-    const neighbors = adj[node] || [];
-    for (const n of neighbors) {
-      if (n === toBlockId && visited.size > 1) return true;
-      stack.push(n);
+    for (const neighbor of (adj[node] || [])) {
+      stack.push(neighbor);
     }
   }
   return false;
