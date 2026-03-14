@@ -1,224 +1,246 @@
-import { topologicalSort, topologicalSortFromBlocks } from "./pipelineValidator";
-import { getComponentDef } from "../data/mlComponents";
+import { topologicalSortFromBlocks } from "./pipelineValidator";
 
-const generateBlockCode = (block) => {
-  const p = block.properties;
+const safeVar = (id) => id.replace(/-/g, "_");
 
-  switch (block.type) {
-    case "ImageLoader":
-      return {
-        imports: ["import tensorflow as tf"],
-        code: [
-          `# Load ${p.dataset} dataset`,
-          `(x_train, y_train), (x_test, y_test) = tf.keras.datasets.${p.dataset === "CIFAR-10" ? "cifar10" : p.dataset === "MNIST" ? "mnist" : "cifar10"}.load_data()`,
-          `x_train, x_test = x_train / 255.0, x_test / 255.0`,
-        ],
-      };
+export const generateCode = (blocks) => {
+  if (blocks.length === 0) return "# Empty pipeline — add blocks to generate code";
 
-    case "CSVLoader":
-      return {
-        imports: ["import pandas as pd", "import numpy as np"],
-        code: [
-          `# Load CSV data`,
+  const sorted = topologicalSortFromBlocks(blocks);
+  const imports = new Set([
+    "import tensorflow as tf",
+    "from tensorflow.keras import layers, models",
+  ]);
+
+  const blockVars = {}; // python variable names
+
+  const preLines = [];
+  const modelLines = [];
+  const postLines = [];
+
+  let inputVar = null;
+  let outputVar = null;
+  let optimizerStr = '"adam"';
+  let lossStr = '"sparse_categorical_crossentropy"';
+  let trainConfig = null;
+
+  const getInputVar = (block, portId = "in") => {
+    const conn = block.connectedInputs?.[portId];
+    return conn ? blockVars[conn.sourceBlockId] : null;
+  };
+
+  for (const block of sorted) {
+    const p = block.properties;
+    const v = safeVar(block.id);
+
+    switch (block.type) {
+
+      // preLines
+      case "ImageLoader": {
+        const dsMap = { "CIFAR-10": "cifar10", MNIST: "mnist" };
+        const ds = dsMap[p.dataset] || "cifar10";
+        preLines.push(
+          `# Load ${p.dataset}`,
+          `(x_train, y_train), (x_test, y_test) = tf.keras.datasets.${ds}.load_data()`,
+          `x_train = x_train.astype("float32") / 255.0`,
+          `x_test  = x_test.astype("float32")  / 255.0`,
+        );
+        if (p.dataset === "MNIST") {
+          preLines.push(
+            `x_train = x_train[..., tf.newaxis]`,
+            `x_test  = x_test[..., tf.newaxis]`,
+          );
+        }
+        break;
+      }
+
+      case "CSVLoader": {
+        imports.add("import pandas as pd");
+        preLines.push(
           `df = pd.read_csv("${p.filePath || "data.csv"}", delimiter="${p.delimiter}"${p.hasHeader ? "" : ", header=None"})`,
           `x_data = df.iloc[:, :-1].values`,
           `y_data = df.iloc[:, -1].values`,
-        ],
-      };
+        );
+        break;
+      }
 
-    case "TrainTestSplit":
-      return {
-        imports: ["from sklearn.model_selection import train_test_split"],
-        code: [
-          `x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=${p.testSize}, random_state=${p.randomState})`,
-        ],
-      };
+      case "TrainTestSplit": {
+        imports.add("from sklearn.model_selection import train_test_split");
+        preLines.push(
+          `x_train, x_test, y_train, y_test = train_test_split(` +
+          `x_data, y_data, test_size=${p.testSize}, random_state=${p.randomState})`,
+        );
+        break;
+      }
 
-    case "Dense":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Dense(${p.units}, activation="${p.activation}"),`],
-        isLayer: true,
-      };
+      // modelLines
+      case "Input": {
+        modelLines.push(`inputs = layers.Input(shape=(${p.shape || "28,28,1"}))`);
+        blockVars[block.id] = "inputs";
+        inputVar = "inputs";
+        break;
+      }
 
-    case "Conv2D":
-      return {
-        imports: [],
-        code: [
-          `tf.keras.layers.Conv2D(${p.filters}, (${p.kernelSize}, ${p.kernelSize}), activation="${p.activation}", padding="${p.padding}"),`,
-        ],
-        isLayer: true,
-      };
+      case "Dense": {
+        modelLines.push(
+          `${v} = layers.Dense(${p.units}, activation="${p.activation}")(${getInputVar(block)})`
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "MaxPool2D":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.MaxPooling2D((${p.poolSize}, ${p.poolSize})),`],
-        isLayer: true,
-      };
+      case "Conv2D": {
+        modelLines.push(
+          `${v} = layers.Conv2D(${p.filters}, (${p.kernelSize}, ${p.kernelSize}), ` +
+          `activation="${p.activation}", padding="${p.padding}")(${getInputVar(block)})`
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "Flatten":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Flatten(),`],
-        isLayer: true,
-      };
+      case "MaxPool2D": {
+        modelLines.push(
+          `${v} = layers.MaxPooling2D((${p.poolSize}, ${p.poolSize}))(${getInputVar(block)})`
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "Dropout":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Dropout(${p.rate}),`],
-        isLayer: true,
-      };
+      case "Flatten": {
+        modelLines.push(`${v} = layers.Flatten()(${getInputVar(block)})`);
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "ReLU":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Activation("relu"),`],
-        isLayer: true,
-      };
+      case "Dropout": {
+        modelLines.push(`${v} = layers.Dropout(${p.rate})(${getInputVar(block)})`);
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "Softmax":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Activation("softmax"),`],
-        isLayer: true,
-      };
+      case "ReLU":
+      case "Softmax":
+      case "Sigmoid": {
+        modelLines.push(
+          `${v} = layers.Activation("${block.type.toLowerCase()}")(${getInputVar(block)})`
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "Sigmoid":
-      return {
-        imports: [],
-        code: [`tf.keras.layers.Activation("sigmoid"),`],
-        isLayer: true,
-      };
+      case "Concatenate": {
+        modelLines.push(
+          `${v} = layers.Concatenate(axis=${p.axis ?? -1})` +
+          `([${getInputVar(block, "in1")}, ${getInputVar(block, "in2")}])`
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
+        break;
+      }
 
-    case "Optimizer":
-      return {
-        imports: [],
-        code: [],
-        optimizer: `tf.keras.optimizers.${p.type}(learning_rate=${p.learningRate})`,
-      };
+      // Training Configuration
+      case "Optimizer": {
+        blockVars[block.id] = "__optimizer__";
+        break;
+      }
 
-    case "LossFunction":
-      return {
-        imports: [],
-        code: [],
-        loss: `"${p.type.charAt(0).toLowerCase() + p.type.slice(1)}"`,
-      };
+      case "LossFunction": {
+        blockVars[block.id] = "__loss__";
+        break;
+      }
 
-    case "TrainBlock": {
-      const inputs = block.connectedInputs || {};
-      const optSource = inputs["optimizer"];
-      const lossSource = inputs["loss"];
-      return {
-        imports: [],
-        code: [],
-        trainConfig: {
-          epochs: p.epochs,
-          batchSize: p.batchSize,
-          optBlockId: optSource?.sourceBlockId || null,
-          lossBlockId: lossSource?.sourceBlockId || null,
-        },
-      };
-    }
+      // TrainBlock
+      case "TrainBlock": {
+        trainConfig = { epochs: p.epochs, batchSize: p.batchSize };
 
-    case "Evaluate":
-      return {
-        imports: [],
-        code: [
+        const optConn = block.connectedInputs?.optimizer;
+        if (optConn) {
+          const optBlock = blocks.find((b) => b.id === optConn.sourceBlockId);
+          if (optBlock) {
+            optimizerStr =
+              `tf.keras.optimizers.${optBlock.properties.type}` +
+              `(learning_rate=${optBlock.properties.learningRate})`;
+          }
+        }
+
+        const lossConn = block.connectedInputs?.loss;
+        if (lossConn) {
+          const lossBlock = blocks.find((b) => b.id === lossConn.sourceBlockId);
+          if (lossBlock) {
+            const t = lossBlock.properties.type;
+            lossStr = `"${t.charAt(0).toLowerCase() + t.slice(1)}"`;
+          }
+        }
+
+        const dataConn = block.connectedInputs?.data;
+        if (dataConn && blockVars[dataConn.sourceBlockId]) {
+          outputVar = blockVars[dataConn.sourceBlockId];
+        }
+        break;
+      }
+
+      // postLines
+
+      case "Evaluate": {
+        postLines.push(
           ``,
-          `# Evaluate model`,
+          `# Evaluate`,
           `test_loss, test_acc = model.evaluate(x_test, y_test, verbose=2)`,
           `print(f"Test accuracy: {test_acc:.4f}")`,
-          `print(f"Test loss: {test_loss:.4f}")`,
-        ],
-      };
-
-    default:
-      return { imports: [], code: [`# Unknown block: ${block.type}`] };
-  }
-};
-
-export const generateCode = (blocks) => {
-  if (blocks.length === 0) return "# Empty pipeline - add blocks to generate code";
-
-  // const sorted = topologicalSort(blocks, connections);
-  const sorted = topologicalSortFromBlocks(blocks);
-  const allImports = new Set();
-  const layers = [];
-  const preCode = [];
-  const postCode = [];
-  let optimizer = `tf.keras.optimizers.Adam(learning_rate=0.001)`;
-  let loss = `"sparse_categorical_crossentropy"`;
-  let trainConfig = null;
-  const blockResults = {};
-
-  allImports.add("import tensorflow as tf");
-
-  for (const block of sorted) {
-    const result = generateBlockCode(block);
-    blockResults[block.id] = result;
-
-    for (const imp of result.imports) allImports.add(imp);
-
-    if (result.isLayer) {
-      layers.push(...result.code);
-    } else if (result.optimizer) {
-      optimizer = result.optimizer;
-    } else if (result.loss) {
-      loss = result.loss;
-    } else if (result.trainConfig) {
-      trainConfig = result.trainConfig;
-      // Resolve optimizer and loss from connected blocks
-      if (result.trainConfig.optBlockId && blockResults[result.trainConfig.optBlockId]?.optimizer) {
-        optimizer = blockResults[result.trainConfig.optBlockId].optimizer;
+          `print(f"Test loss:     {test_loss:.4f}")`,
+        );
+        break;
       }
-      if (result.trainConfig.lossBlockId && blockResults[result.trainConfig.lossBlockId]?.loss) {
-        loss = blockResults[result.trainConfig.lossBlockId].loss;
-      }
-    } else if (block.type === "Evaluate") {
-      postCode.push(...result.code);
-    } else {
-      preCode.push(...result.code);
+
+      default:
+        modelLines.push(`# Unknown block: ${block.type}`);
     }
   }
 
-  const lines = [];
-  lines.push([...allImports].join("\n"));
-  lines.push("");
-
-  if (preCode.length > 0) {
-    lines.push(...preCode);
-    lines.push("");
-  }
-
-  if (layers.length > 0) {
-    lines.push("# Build model");
-    lines.push("model = tf.keras.Sequential([");
-    for (const l of layers) {
-      lines.push(`    ${l}`);
-    }
-    lines.push("])");
-    lines.push("");
-    lines.push("# Compile model");
-    lines.push(`model.compile(`);
-    lines.push(`    optimizer=${optimizer},`);
-    lines.push(`    loss=${loss},`);
-    lines.push(`    metrics=["accuracy"]`);
-    lines.push(`)`)
-    lines.push("");
-  }
-
-  if (trainConfig) {
-    lines.push("# Train model");
-    lines.push(
-      `history = model.fit(x_train, y_train, epochs=${trainConfig.epochs}, batch_size=${trainConfig.batchSize}, validation_split=0.2, verbose=1)`
+  if (inputVar && outputVar) {
+    modelLines.push(
+      ``,
+      `# Build model`,
+      `model = models.Model(inputs=${inputVar}, outputs=${outputVar})`,
     );
   }
 
-  if (postCode.length > 0) {
-    lines.push(...postCode);
+  modelLines.push(
+    ``,
+    `# Compile`,
+    `model.compile(`,
+    `    optimizer=${optimizerStr},`,
+    `    loss=${lossStr},`,
+    `    metrics=["accuracy"]`,
+    `)`,
+  );
+
+  if (trainConfig) {
+    modelLines.push(
+      ``,
+      `# Train`,
+      `model.fit(`,
+      `    x_train, y_train,`,
+      `    epochs=${trainConfig.epochs},`,
+      `    batch_size=${trainConfig.batchSize},`,
+      `    validation_split=0.2,`,
+      `    verbose=1`,
+      `)`,
+    );
   }
 
-  return lines.join("\n");
+  return [
+    [...imports].join("\n"),
+    "",
+    ...preLines,
+    "",
+    "# Model definition",
+    ...modelLines,
+    ...postLines,
+  ].join("\n");
 };
