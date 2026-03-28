@@ -7,10 +7,12 @@ import Canvas, { setIdCounter } from "../components/Canvas";
 import Toolbar from "../components/Toolbar";
 import CodeViewerPanel from "../components/CodeViewerPanel";
 import TrainingPanel from "../components/TrainingPanel";
+import ErrorLogPanel from "../components/ErrorLogPanel";
 import AuthModal from "../components/AuthModal";
 import ProjectsModal from "../components/ProjectsModal";
 import SaveModal from "../components/SaveModal";
 import { validatePipeline } from "../utils/pipelineValidator";
+import { checkPipelineWarnings } from "../utils/pipelineWarnings";
 import { generateCode } from "../utils/codeGenerator";
 import { simulateTraining } from "../utils/trainSimulator";
 import { exportPipeline, getMaxBlockId } from "../utils/storageManager";
@@ -23,6 +25,7 @@ const WhiteboardPage = () => {
 
   const [blocks, setBlocks] = useState([]);
   const [connections, setConnections] = useState([]);
+  const [warnings, setWarnings] = useState([]);
   const [activePanel, setActivePanel] = useState(null);
   const [generatedCode, setGeneratedCode] = useState("");
   const [trainingState, setTrainingState] = useState({
@@ -35,11 +38,16 @@ const WhiteboardPage = () => {
   const [toast, setToast] = useState(null);
   const cancelTrainingRef = useRef(null);
 
-  const [currentProject, setCurrentProject] = useState(null); // { id, name }
+  const [currentProject, setCurrentProject] = useState(null);
 
-  const [authModal, setAuthModal] = useState(null);   // 'login' | 'register' | null
+  const [authModal, setAuthModal] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+
+  // ── Re-run diagnostics any time blocks or connections change ─────────────
+  useEffect(() => {
+    setWarnings(checkPipelineWarnings(blocks, connections));
+  }, [blocks, connections]);
 
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
@@ -93,12 +101,10 @@ const WhiteboardPage = () => {
     const canvasData = { blocks, connections };
     try {
       if (currentProject) {
-        // Update existing project
         const updated = await projectsAPI.update(currentProject.id, name, canvasData, token);
         setCurrentProject({ id: updated.id, name: updated.name });
         showToast(`"${updated.name}" saved`, "success");
       } else {
-        // Create new project
         const created = await projectsAPI.create(name, canvasData, token);
         setCurrentProject({ id: created.id, name: created.name });
         showToast(`"${created.name}" saved`, "success");
@@ -110,30 +116,22 @@ const WhiteboardPage = () => {
   }, [blocks, connections, currentProject, token, showToast]);
 
   const handleSave = useCallback(() => {
-    if (!isAuthenticated) {
-      setAuthModal("login");
-      return;
-    }
+    if (!isAuthenticated) { setAuthModal("login"); return; }
     if (currentProject) {
-      // Already named — save immediately
       doSave(currentProject.name);
     } else {
-      // First save — prompt for name
       setShowSaveModal(true);
     }
   }, [isAuthenticated, currentProject, doSave]);
 
   const handleLoad = useCallback(() => {
-    if (!isAuthenticated) {
-      setAuthModal("login");
-      return;
-    }
+    if (!isAuthenticated) { setAuthModal("login"); return; }
     setShowProjectsModal(true);
   }, [isAuthenticated]);
 
   const handleProjectLoaded = useCallback((fullProject) => {
     const { id, name, data } = fullProject;
-    const loadedBlocks = data?.blocks ?? [];
+    const loadedBlocks      = data?.blocks      ?? [];
     const loadedConnections = data?.connections ?? [];
     setBlocks(loadedBlocks);
     setConnections(loadedConnections);
@@ -146,6 +144,7 @@ const WhiteboardPage = () => {
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     showToast(`"${name}" loaded`, "success");
+    // warnings will update automatically via the useEffect above
   }, [showToast]);
 
   const handleExport = useCallback(() => {
@@ -192,6 +191,7 @@ const WhiteboardPage = () => {
               currentProjectName={currentProject?.name}
             />
           </div>
+
           <div className="canvas-area">
             <Canvas
               blocks={blocks}
@@ -207,16 +207,17 @@ const WhiteboardPage = () => {
               <TrainingPanel trainingState={trainingState} onClose={handleClosePanel} />
             )}
           </div>
+
+          {/* Persistent diagnostics strip — always rendered, never saved */}
+          <ErrorLogPanel warnings={warnings} />
         </div>
+
         {toast && (
           <div className={`toast toast-${toast.type}`}>{toast.message}</div>
         )}
-        {/* Modals */}
+
         {authModal && (
-          <AuthModal
-            mode={authModal}
-            onClose={() => setAuthModal(null)}
-          />
+          <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
         )}
         {showSaveModal && (
           <SaveModal
