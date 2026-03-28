@@ -1582,3 +1582,153 @@ body {
   font-family: var(--font-mono);
   color: inherit;
 }
+
+/* Training Settings Bar */
+
+.tsbar {
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  overflow: hidden;
+  transition: height 0.18s ease, background 0.18s ease;
+}
+
+.tsbar-collapsed {
+  height: 28px;
+  background: var(--bg-deep);
+}
+
+.tsbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 48px;
+  padding: 0 1rem;
+  transition: height 0.18s ease;
+}
+
+.tsbar-collapsed .tsbar-inner {
+  height: 28px;
+}
+
+/* Label */
+
+.tsbar-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.tsbar-icon {
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+/* Separator */
+
+.tsbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Field groups */
+
+.tsbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.tsbar-field-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Inputs and selects */
+
+.tsbar-select,
+.tsbar-input {
+  height: 28px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0 0.45rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.tsbar-select:focus,
+.tsbar-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.tsbar-select {
+  cursor: pointer;
+  padding-right: 0.3rem;
+}
+
+.tsbar-select-wide {
+  max-width: 220px;
+}
+
+.tsbar-input-sm {
+  width: 76px;
+}
+
+.tsbar-input-xs {
+  width: 58px;
+}
+
+/* Collapsed summary text */
+
+.tsbar-summary {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+/* Collapse / expand toggle */
+
+.tsbar-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.6rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+
+.tsbar-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}

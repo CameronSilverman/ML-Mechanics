@@ -8,6 +8,7 @@ import Toolbar from "../components/Toolbar";
 import CodeViewerPanel from "../components/CodeViewerPanel";
 import TrainingPanel from "../components/TrainingPanel";
 import ErrorLogPanel from "../components/ErrorLogPanel";
+import TrainingSettingsPanel, { DEFAULT_TRAINING_SETTINGS } from "../components/TrainingSettingsPanel";
 import AuthModal from "../components/AuthModal";
 import ProjectsModal from "../components/ProjectsModal";
 import SaveModal from "../components/SaveModal";
@@ -25,7 +26,9 @@ const WhiteboardPage = () => {
 
   const [blocks, setBlocks] = useState([]);
   const [connections, setConnections] = useState([]);
+  const [trainingSettings, setTrainingSettings] = useState(DEFAULT_TRAINING_SETTINGS);
   const [warnings, setWarnings] = useState([]);
+
   const [activePanel, setActivePanel] = useState(null);
   const [generatedCode, setGeneratedCode] = useState("");
   const [trainingState, setTrainingState] = useState({
@@ -39,15 +42,14 @@ const WhiteboardPage = () => {
   const cancelTrainingRef = useRef(null);
 
   const [currentProject, setCurrentProject] = useState(null);
-
   const [authModal, setAuthModal] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
 
-  // ── Re-run diagnostics any time blocks or connections change ─────────────
+  // Re-run diagnostics on any pipeline or settings change
   useEffect(() => {
-    setWarnings(checkPipelineWarnings(blocks, connections));
-  }, [blocks, connections]);
+    setWarnings(checkPipelineWarnings(blocks, connections, trainingSettings));
+  }, [blocks, connections, trainingSettings]);
 
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
@@ -61,9 +63,7 @@ const WhiteboardPage = () => {
       return;
     }
 
-    const trainBlock = blocks.find((b) => b.type === "TrainBlock");
-    const totalEpochs = trainBlock?.properties?.epochs || 10;
-
+    const totalEpochs = trainingSettings.epochs || 10;
     setTrainingState({ status: "running", currentEpoch: 0, totalEpochs, history: null, summary: null });
     setActivePanel("training");
 
@@ -71,17 +71,22 @@ const WhiteboardPage = () => {
       totalEpochs,
       (data) => setTrainingState((prev) => ({ ...prev, currentEpoch: data.epoch, history: data.history })),
       (result) => {
-        setTrainingState((prev) => ({ ...prev, status: "complete", history: result.history, summary: result.summary }));
+        setTrainingState((prev) => ({
+          ...prev,
+          status: "complete",
+          history: result.history,
+          summary: result.summary,
+        }));
         showToast("Training complete!", "success");
       }
     );
     cancelTrainingRef.current = cancel;
-  }, [blocks, connections, showToast]);
+  }, [blocks, connections, trainingSettings, showToast]);
 
   const handleViewCode = useCallback(() => {
-    setGeneratedCode(generateCode(blocks));
+    setGeneratedCode(generateCode(blocks, trainingSettings));
     setActivePanel("code");
-  }, [blocks]);
+  }, [blocks, trainingSettings]);
 
   const handleClear = useCallback(() => {
     if (blocks.length === 0) return;
@@ -95,10 +100,12 @@ const WhiteboardPage = () => {
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     showToast("Canvas cleared", "info");
+    // Training settings intentionally preserved across clears
   }, [blocks.length, showToast]);
 
   const doSave = useCallback(async (name) => {
-    const canvasData = { blocks, connections };
+    // trainingSettings is included in the saved data so it's restored with the project
+    const canvasData = { blocks, connections, trainingSettings };
     try {
       if (currentProject) {
         const updated = await projectsAPI.update(currentProject.id, name, canvasData, token);
@@ -113,7 +120,7 @@ const WhiteboardPage = () => {
     } catch (err) {
       showToast("Save failed: " + err.message, "error");
     }
-  }, [blocks, connections, currentProject, token, showToast]);
+  }, [blocks, connections, trainingSettings, currentProject, token, showToast]);
 
   const handleSave = useCallback(() => {
     if (!isAuthenticated) { setAuthModal("login"); return; }
@@ -131,20 +138,24 @@ const WhiteboardPage = () => {
 
   const handleProjectLoaded = useCallback((fullProject) => {
     const { id, name, data } = fullProject;
-    const loadedBlocks      = data?.blocks      ?? [];
-    const loadedConnections = data?.connections ?? [];
+    const loadedBlocks      = data?.blocks           ?? [];
+    const loadedConnections = data?.connections      ?? [];
+    const loadedSettings    = data?.trainingSettings ?? DEFAULT_TRAINING_SETTINGS;
+
     setBlocks(loadedBlocks);
     setConnections(loadedConnections);
+    setTrainingSettings(loadedSettings);
     setIdCounter(getMaxBlockId(loadedBlocks));
     setCurrentProject({ id, name });
     setActivePanel(null);
+
     if (cancelTrainingRef.current) {
       cancelTrainingRef.current();
       cancelTrainingRef.current = null;
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     showToast(`"${name}" loaded`, "success");
-    // warnings will update automatically via the useEffect above
+    // warnings recompute automatically via the useEffect
   }, [showToast]);
 
   const handleExport = useCallback(() => {
@@ -172,6 +183,8 @@ const WhiteboardPage = () => {
       <div className="whiteboard-page">
         <Sidebar />
         <div className="canvas-wrapper">
+
+          {/* Top toolbar */}
           <div className="canvas-toolbar">
             <button className="toolbar-home-btn" onClick={() => navigate("/")} title="Go to home">
               <span className="toolbar-logo">⬡</span>
@@ -192,6 +205,13 @@ const WhiteboardPage = () => {
             />
           </div>
 
+          {/* Training settings bar */}
+          <TrainingSettingsPanel
+            settings={trainingSettings}
+            onChange={setTrainingSettings}
+          />
+
+          {/* Canvas + side panels */}
           <div className="canvas-area">
             <Canvas
               blocks={blocks}
@@ -208,8 +228,9 @@ const WhiteboardPage = () => {
             )}
           </div>
 
-          {/* Persistent diagnostics strip — always rendered, never saved */}
+          {/* Diagnostics strip */}
           <ErrorLogPanel warnings={warnings} />
+
         </div>
 
         {toast && (

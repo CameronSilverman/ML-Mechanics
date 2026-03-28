@@ -127,39 +127,6 @@ const ML_COMPONENTS = {
       outputs: [{ id: "out", type: "data", label: "Output" }],
     },
   ],
-  Training: [
-    {
-      type: "Optimizer",
-      label: "Optimizer",
-      icon: "⚙",
-      color: "#8b5cf6",
-      defaults: { type: "Adam", learningRate: 0.001 },
-      inputs: [],
-      outputs: [{ id: "out", type: "config", label: "Config" }],
-    },
-    {
-      type: "LossFunction",
-      label: "Loss Function",
-      icon: "📉",
-      color: "#a78bfa",
-      defaults: { type: "SparseCategoricalCrossentropy" },
-      inputs: [],
-      outputs: [{ id: "out", type: "config", label: "Config" }],
-    },
-    {
-      type: "TrainBlock",
-      label: "Train",
-      icon: "▶",
-      color: "#7c3aed",
-      defaults: { epochs: 10, batchSize: 32 },
-      inputs: [
-        { id: "data", type: "data", label: "Model" },
-        { id: "optimizer", type: "config", label: "Optimizer" },
-        { id: "loss", type: "config", label: "Loss" },
-      ],
-      outputs: [{ id: "out", type: "data", label: "Trained" }],
-    },
-  ],
   Output: [
     {
       type: "Evaluate",

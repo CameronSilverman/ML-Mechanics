@@ -11,8 +11,18 @@ const parseMetrics = (raw) =>
     .map((m) => m.trim())
     .filter(Boolean);
 
-export const generateCode = (blocks) => {
+const DEFAULT_SETTINGS = {
+  optimizer: "Adam",
+  learningRate: 0.001,
+  loss: "SparseCategoricalCrossentropy",
+  epochs: 10,
+  batchSize: 32,
+};
+
+export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   if (blocks.length === 0) return "# Empty pipeline — add blocks to generate code";
+
+  const ts = { ...DEFAULT_SETTINGS, ...trainingSettings };
 
   const sorted = topologicalSortFromBlocks(blocks);
   const imports = new Set([
@@ -28,13 +38,8 @@ export const generateCode = (blocks) => {
 
   let inputVar = null;
   let outputVar = null;
-  let optimizerStr = '"adam"';
-  let lossStr = '"sparse_categorical_crossentropy"';
-  let trainConfig = null;
 
   let compileMetrics = ["accuracy"];
-
-  let defaultBatchSize = 32;
 
   const getInputVar = (block, portId = "in") => {
     const conn = block.connectedInputs?.[portId];
@@ -52,8 +57,6 @@ export const generateCode = (blocks) => {
       case "ImageLoader": {
         const dsMap = { "CIFAR-10": "cifar10", MNIST: "mnist" };
         const ds = dsMap[p.dataset] || "cifar10";
-
-        defaultBatchSize = p.batchSize ?? 32;
 
         preLines.push(
           `# Load ${p.dataset}`,
@@ -189,46 +192,6 @@ export const generateCode = (blocks) => {
         break;
       }
 
-      // Training config
-
-      case "Optimizer": {
-        blockVars[block.id] = "__optimizer__";
-        break;
-      }
-
-      case "LossFunction": {
-        blockVars[block.id] = "__loss__";
-        break;
-      }
-
-      case "TrainBlock": {
-        trainConfig = { epochs: p.epochs, batchSize: p.batchSize ?? defaultBatchSize };
-
-        const optConn = block.connectedInputs?.optimizer;
-        if (optConn) {
-          const optBlock = blocks.find((b) => b.id === optConn.sourceBlockId);
-          if (optBlock) {
-            optimizerStr =
-              `tf.keras.optimizers.${optBlock.properties.type}` +
-              `(learning_rate=${optBlock.properties.learningRate})`;
-          }
-        }
-
-        const lossConn = block.connectedInputs?.loss;
-        if (lossConn) {
-          const lossBlock = blocks.find((b) => b.id === lossConn.sourceBlockId);
-          if (lossBlock) {
-            lossStr = `"${toSnakeCase(lossBlock.properties.type)}"`;
-          }
-        }
-
-        const dataConn = block.connectedInputs?.data;
-        if (dataConn && blockVars[dataConn.sourceBlockId]) {
-          outputVar = blockVars[dataConn.sourceBlockId];
-        }
-        break;
-      }
-
       // Output
 
       case "Evaluate": {
@@ -269,7 +232,11 @@ export const generateCode = (blocks) => {
 
   // Compile
 
+  const optimizerStr =
+    `tf.keras.optimizers.${ts.optimizer}(learning_rate=${ts.learningRate})`;
+  const lossStr = `"${toSnakeCase(ts.loss)}"`;
   const metricsListStr = compileMetrics.map((m) => `"${m}"`).join(", ");
+
   modelLines.push(
     ``,
     `# Compile`,
@@ -282,19 +249,17 @@ export const generateCode = (blocks) => {
 
   // Train
 
-  if (trainConfig) {
-    modelLines.push(
-      ``,
-      `# Train`,
-      `model.fit(`,
-      `    x_train, y_train,`,
-      `    epochs=${trainConfig.epochs},`,
-      `    batch_size=${trainConfig.batchSize},`,
-      `    validation_split=0.2,`,
-      `    verbose=1`,
-      `)`,
-    );
-  }
+  modelLines.push(
+    ``,
+    `# Train`,
+    `model.fit(`,
+    `    x_train, y_train,`,
+    `    epochs=${ts.epochs},`,
+    `    batch_size=${ts.batchSize},`,
+    `    validation_split=0.2,`,
+    `    verbose=1`,
+    `)`,
+  );
 
   // Out 
   
