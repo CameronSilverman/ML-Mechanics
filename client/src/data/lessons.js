@@ -3,28 +3,57 @@
  *
  * To add a new lesson: push a new object to LESSONS. No other file needs changes.
  *
- * Lesson shape:
+ *  Lesson shape
  * {
- *   id:                    string          — unique slug used in the URL
+ *   id:                    string
  *   title:                 string
  *   category:              string          — groups lessons on the Learn home page
  *   difficulty:            'beginner' | 'intermediate' | 'advanced'
  *   estimatedMinutes:      number
- *   description:           string          — shown on the lesson card
- *   objectives:            string[]        — bullet list shown in instruction panel
+ *   description:           string          — shown on the lesson card only
+ *   objectives:            string[]        — bullet list shown in the Lesson tab header
  *
- *   lockedTrainingSettings: object | null  — if set, TrainingSettingsPanel becomes read-only
+ *   lockedTrainingSettings: object | null  — locks TrainingSettingsPanel
  *     { optimizer, learningRate, loss, epochs, batchSize }
  *
- *   initialBlocks: Array<{               — blocks pre-placed when the lesson starts
- *     type:               string          — must match a type in mlComponents.js
+ *   initialBlocks: Array<{
+ *     type:               string           — must match mlComponents.js type key
  *     x:                  number
  *     y:                  number
- *     overrideProperties: object          — merged over the component's defaults
- *     lockedProperties:   string[]        — property keys that cannot be edited
+ *     overrideProperties: object           — merged over component defaults
+ *     lockedProperties:   string[]         — keys that cannot be edited
  *   }>
  *
- *   steps: Array<{                        — shown in the instruction panel
+ *   Rich content blocks (rendered in the "Lesson" tab)
+ *
+ *   content: Array<ContentBlock>
+ *
+ *   ContentBlock types:
+ *
+ *   { type: "text", body: string }
+ *     Plain prose paragraph.
+ *
+ *   { type: "heading", level: 2|3, body: string }
+ *     Section heading inside the lesson body.
+ *
+ *   { type: "callout", variant: "info"|"tip"|"warning"|"math", title?: string, body: string }
+ *     Colored aside box.
+ *
+ *   { type: "code", language?: string, body: string }
+ *     Syntax-highlighted code snippet (Python highlighting built in).
+ *
+ *   { type: "image", src: string, alt?: string, caption?: string }
+ *     Inline figure. src can be a relative path or a full URL.
+ *
+ *   { type: "video", src: string, caption?: string }
+ *     <video> element with controls.
+ *
+ *   { type: "divider" }
+ *     Horizontal rule.
+ *
+ *   Steps (rendered in the "Steps" tab)
+ *
+ *   steps: Array<{
  *     id:          string
  *     title:       string
  *     description: string
@@ -32,18 +61,17 @@
  *     validate:    (blocks, connections) => boolean
  *   }>
  *
- *   solution: {                           — used by solutionChecker for the final pass/fail
- *     requiredBlocks: Array<{
- *       type:               string
- *       requiredProperties: object        — loose (==) property matching
- *     }>
+ *   Solution (used by solutionChecker)
+ *
+ *   solution: {
+ *     requiredBlocks: Array<{ type, requiredProperties }>
  *     requiredConnectionSequence: Array<{ fromType, toType }> | null
  *   }
  * }
  */
 
 const LESSONS = [
-  // ─── Fundamentals ────────────────────────────────────────────────────────────
+  // --- Fundamentals ---
   {
     id: "dense-intro",
     title: "Your First Dense Network",
@@ -66,7 +94,6 @@ const LESSONS = [
       batchSize: 32,
     },
 
-    // The Input block is pre-placed; its shape is locked so the lesson stays coherent
     initialBlocks: [
       {
         type: "Input",
@@ -74,6 +101,98 @@ const LESSONS = [
         y: 200,
         overrideProperties: { shape: "784" },
         lockedProperties: ["shape"],
+      },
+    ],
+
+    content: [
+      {
+        type: "text",
+        body:
+          "A neural network is made of layers. The simplest and most fundamental " +
+          "layer type is the Dense layer — also called a fully connected layer — " +
+          "where every input neuron is connected to every output neuron.",
+      },
+      {
+        type: "image",
+        src: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Colored_neural_network.svg/400px-Colored_neural_network.svg.png",
+        alt: "Diagram of a fully connected neural network",
+        caption:
+          "A fully connected network: every node in one layer connects to every node in the next.",
+      },
+      {
+        type: "heading",
+        level: 3,
+        body: "How a Dense layer works",
+      },
+      {
+        type: "text",
+        body:
+          "Each neuron in a Dense layer computes a weighted sum of its inputs, " +
+          "adds a bias term, then passes the result through an activation function. " +
+          "During training, the network adjusts those weights and biases to reduce " +
+          "its prediction error.",
+      },
+      {
+        type: "callout",
+        variant: "math",
+        title: "The formula",
+        body: "output = activation( W · input + b )\n\nW  — weight matrix  (learned)\nb  — bias vector    (learned)\nactivation  — non-linear function (ReLU, Softmax, …)",
+      },
+      {
+        type: "heading",
+        level: 3,
+        body: "Activation functions",
+      },
+      {
+        type: "text",
+        body:
+          "Without an activation function, stacking Dense layers would be no more " +
+          "powerful than a single linear transformation. Activations introduce " +
+          "non-linearity, letting the network learn complex, real-world patterns.",
+      },
+      {
+        type: "callout",
+        variant: "info",
+        title: "ReLU — best for hidden layers",
+        body: "ReLU outputs max(0, x). It is fast to compute, avoids the vanishing-gradient problem, and is the go-to default for hidden Dense layers.",
+      },
+      {
+        type: "callout",
+        variant: "tip",
+        title: "Softmax — best for the output layer",
+        body: "Softmax converts a vector of raw scores into class probabilities that sum to 1. Use it as the activation on the final Dense layer of any multi-class classifier.",
+      },
+      {
+        type: "heading",
+        level: 3,
+        body: "What we're building",
+      },
+      {
+        type: "text",
+        body:
+          "We'll classify handwritten digits (0–9) from the MNIST dataset. Each " +
+          "28×28-pixel image is flattened into a vector of 784 values — that is " +
+          "why the Input block uses shape 784. Two Dense layers then map those " +
+          "pixel values to one of 10 digit classes.",
+      },
+      {
+        type: "code",
+        language: "python",
+        body:
+          "# The architecture you will build\n" +
+          "inputs = layers.Input(shape=(784,))\n" +
+          "x      = layers.Dense(128, activation='relu')(inputs)\n" +
+          "output = layers.Dense(10,  activation='softmax')(x)\n" +
+          "model  = models.Model(inputs=inputs, outputs=output)",
+      },
+      {
+        type: "divider",
+      },
+      {
+        type: "callout",
+        variant: "warning",
+        title: "Ready to build?",
+        body: "Switch to the Steps tab and follow each step on the canvas. The Input block is already placed — you just need to add and connect the Dense layers.",
       },
     ],
 
@@ -140,23 +259,17 @@ const LESSONS = [
         validate: (blocks, connections) => {
           const inputBlock = blocks.find((b) => b.type === "Input");
           const hiddenDense = blocks.find(
-            (b) =>
-              b.type === "Dense" && Number(b.properties.units) === 128
+            (b) => b.type === "Dense" && Number(b.properties.units) === 128
           );
           const outputDense = blocks.find(
-            (b) =>
-              b.type === "Dense" && Number(b.properties.units) === 10
+            (b) => b.type === "Dense" && Number(b.properties.units) === 10
           );
           if (!inputBlock || !hiddenDense || !outputDense) return false;
           const conn1 = connections.some(
-            (c) =>
-              c.fromBlockId === inputBlock.id &&
-              c.toBlockId === hiddenDense.id
+            (c) => c.fromBlockId === inputBlock.id  && c.toBlockId === hiddenDense.id
           );
           const conn2 = connections.some(
-            (c) =>
-              c.fromBlockId === hiddenDense.id &&
-              c.toBlockId === outputDense.id
+            (c) => c.fromBlockId === hiddenDense.id && c.toBlockId === outputDense.id
           );
           return conn1 && conn2;
         },
@@ -165,9 +278,9 @@ const LESSONS = [
 
     solution: {
       requiredBlocks: [
-        { type: "Input",  requiredProperties: { shape: "784" } },
-        { type: "Dense",  requiredProperties: { units: 128, activation: "relu" } },
-        { type: "Dense",  requiredProperties: { units: 10,  activation: "softmax" } },
+        { type: "Input", requiredProperties: { shape: "784" } },
+        { type: "Dense", requiredProperties: { units: 128, activation: "relu" } },
+        { type: "Dense", requiredProperties: { units: 10,  activation: "softmax" } },
       ],
       requiredConnectionSequence: [
         { fromType: "Input", toType: "Dense" },
@@ -176,7 +289,7 @@ const LESSONS = [
     },
   },
 
-  // ─── Add more lessons here — no other files need to change ───────────────────
+  // ─── Add more lessons here — only this file needs to change ─────────────────
 ];
 
 export default LESSONS;
