@@ -40,16 +40,33 @@ const WhiteboardPage = () => {
   });
   const [toast, setToast] = useState(null);
   const cancelTrainingRef = useRef(null);
+  const isDirtyRef = useRef(false);
 
   const [currentProject, setCurrentProject] = useState(null);
   const [authModal, setAuthModal] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
 
-  // Re-run diagnostics on any pipeline or settings change
   useEffect(() => {
     setWarnings(checkPipelineWarnings(blocks, connections, trainingSettings));
   }, [blocks, connections, trainingSettings]);
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    isDirtyRef.current = true;
+  }, [blocks, connections, trainingSettings]);
+
+  // Warn before tab close / reload if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!isDirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
@@ -99,6 +116,7 @@ const WhiteboardPage = () => {
       cancelTrainingRef.current = null;
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
+    isDirtyRef.current = false;
     showToast("Canvas cleared", "info");
     // Training settings intentionally preserved across clears
   }, [blocks.length, showToast]);
@@ -116,6 +134,7 @@ const WhiteboardPage = () => {
         setCurrentProject({ id: created.id, name: created.name });
         showToast(`"${created.name}" saved`, "success");
       }
+      isDirtyRef.current = false;
       setShowSaveModal(false);
     } catch (err) {
       showToast("Save failed: " + err.message, "error");
@@ -154,6 +173,7 @@ const WhiteboardPage = () => {
       cancelTrainingRef.current = null;
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
+    isDirtyRef.current = false;
     showToast(`"${name}" loaded`, "success");
     // warnings recompute automatically via the useEffect
   }, [showToast]);
@@ -186,7 +206,13 @@ const WhiteboardPage = () => {
 
           {/* Top toolbar */}
           <div className="canvas-toolbar">
-            <button className="toolbar-home-btn" onClick={() => navigate("/")} title="Go to home">
+            <button 
+              className="toolbar-home-btn" 
+              onClick={() => {
+                if (isDirtyRef.current && !window.confirm("You have unsaved changes. Leave without saving?"))
+                  return; 
+                navigate("/");}} 
+              title="Go to home">
               <span className="toolbar-logo">⬡</span>
               <span className="toolbar-title">ML Maker Studio</span>
             </button>
