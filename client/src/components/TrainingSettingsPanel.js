@@ -28,10 +28,23 @@ export const DEFAULT_TRAINING_SETTINGS = {
   batchSize: 32,
 };
 
-const TrainingSettingsPanel = ({ settings, onChange }) => {
+/**
+ * TrainingSettingsPanel
+ *
+ * Props:
+ *   settings    — current training settings object
+ *   onChange    — (newSettings) => void
+ *   lessonLock  — boolean — when true, all controls are disabled and a lock
+ *                 indicator is shown. The lesson sets fixed training parameters
+ *                 so the learner stays focused on the architecture task.
+ */
+const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
   const [open, setOpen] = useState(true);
 
-  const update = (key, value) => onChange({ ...settings, [key]: value });
+  const update = (key, value) => {
+    if (lessonLock) return;
+    onChange({ ...settings, [key]: value });
+  };
 
   const summary = [
     settings.optimizer,
@@ -42,7 +55,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
   ].join(" · ");
 
   return (
-    <div className={`tsbar${open ? "" : " tsbar-collapsed"}`}>
+    <div className={`tsbar${open ? "" : " tsbar-collapsed"}${lessonLock ? " tsbar-locked" : ""}`}>
       <div
         className="tsbar-inner"
         onClick={!open ? () => setOpen(true) : undefined}
@@ -53,6 +66,12 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
           <span className="tsbar-icon">⚙</span>
           Training
         </span>
+
+        {lessonLock && (
+          <span className="tsbar-lock-badge" title="Training settings are fixed for this lesson">
+            🔒 lesson
+          </span>
+        )}
 
         {open ? (
           /* Expanded controls */
@@ -66,6 +85,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
                 value={settings.optimizer}
                 onChange={(e) => update("optimizer", e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
               >
                 {OPTIMIZERS.map((o) => (
                   <option key={o} value={o}>{o}</option>
@@ -85,6 +105,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
                   update("learningRate", parseFloat(e.target.value) || 0.001)
                 }
                 onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
               />
             </div>
 
@@ -97,6 +118,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
                 value={settings.loss}
                 onChange={(e) => update("loss", e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
               >
                 {LOSS_FUNCTIONS.map((l) => (
                   <option key={l} value={l}>{l}</option>
@@ -118,6 +140,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
                   update("epochs", parseInt(e.target.value, 10) || 10)
                 }
                 onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
               />
             </div>
 
@@ -133,6 +156,7 @@ const TrainingSettingsPanel = ({ settings, onChange }) => {
                   update("batchSize", parseInt(e.target.value, 10) || 32)
                 }
                 onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
               />
             </div>
           </>

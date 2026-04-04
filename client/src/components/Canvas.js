@@ -58,6 +58,7 @@ const Canvas = ({
       properties: { ...componentDef.defaults },
       connectedOutputs: {},
       connectedInputs: {},
+      lockedProperties: [],
     };
     setBlocks((prev) => [...prev, newBlock]);
   }, [setBlocks]);
@@ -420,6 +421,7 @@ const Canvas = ({
           />
         ))}
       </div>
+
       {blocks.length === 0 && !pendingConnection && (
         <div className="canvas-placeholder">
           <div className="canvas-placeholder-icon">⬡</div>
@@ -457,11 +459,13 @@ const Canvas = ({
           onClose={() => setContextMenu(null)}
         />
       )}
+
       {editingBlock && (
         <PropertiesPanel
           block={editingBlock}
           onSave={updateProperties}
           onClose={() => setEditingBlock(null)}
+          lockedProperties={editingBlock.lockedProperties || []}
         />
       )}
     </div>

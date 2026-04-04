@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import WhiteboardPage from "./pages/WhiteboardPage";
+import LearnPage from "./pages/LearnPage";
+import LessonPage from "./pages/LessonPage";
 import AuthModal from "./components/AuthModal";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./styles/index.css";
@@ -21,6 +23,11 @@ const HomePage = () => {
 
         <Link to="/whiteboard" className="home-cta">
           Open Workspace →
+        </Link>
+
+        {/* Learn section link */}
+        <Link to="/learn" className="home-learn-link">
+          ◈ Learn ML fundamentals →
         </Link>
 
         <div className="home-auth">
@@ -72,6 +79,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/whiteboard" element={<WhiteboardPage />} />
+          <Route path="/learn" element={<LearnPage />} />
+          <Route path="/learn/:lessonId" element={<LessonPage />} />
         </Routes>
       </Router>
     </AuthProvider>

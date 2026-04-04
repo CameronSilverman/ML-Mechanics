@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 
-const PropertiesPanel = ({ block, onSave, onClose }) => {
+/**
+ * PropertiesPanel
+ *
+ * Props:
+ *   block            — canvas block being edited
+ *   onSave           — (blockId, properties) => void
+ *   onClose          — () => void
+ *   lockedProperties — string[] of property keys that cannot be edited (default [])
+ *                      Populated from block.lockedProperties by Canvas when a lesson is active.
+ */
+const PropertiesPanel = ({ block, onSave, onClose, lockedProperties = [] }) => {
   const [properties, setProperties] = useState({});
 
   useEffect(() => {
@@ -35,17 +45,36 @@ const PropertiesPanel = ({ block, onSave, onClose }) => {
           </div>
           <button className="properties-close" onClick={onClose}>✕</button>
         </div>
+
         <div className="properties-body">
           {entries.length === 0 && (
             <p className="properties-empty">No configurable properties.</p>
           )}
-          {entries.map(([key, val]) => (
+
+          {entries.map(([key, val]) => {
+          const isLocked = lockedProperties.includes(key);
+
+          return (
             <div key={key} className="properties-field">
-              <label>{key}</label>
-              {typeof val === "boolean" ? (
+              <label>
+                {key}
+                {/* Lock badge — shown next to the label when the property is frozen */}
+                {isLocked && (
+                  <span className="prop-locked-badge" title="Locked by lesson">
+                    🔒 lesson
+                  </span>
+                )}
+              </label>
+
+              {isLocked ? (
+                // Read-only display for locked properties
+                <div className="prop-locked-value">{String(val)}</div>
+              ) : typeof val === "boolean" ? (
                 <select
                   value={String(val)}
-                  onChange={(e) => handleChange(key, e.target.value === "true")}
+                  onChange={(e) =>
+                    handleChange(key, e.target.value === "true")
+                  }
                 >
                   <option value="true">true</option>
                   <option value="false">false</option>
@@ -55,7 +84,9 @@ const PropertiesPanel = ({ block, onSave, onClose }) => {
                   type="number"
                   value={val}
                   step={val < 1 ? 0.001 : 1}
-                  onChange={(e) => handleChange(key, parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleChange(key, parseFloat(e.target.value) || 0)
+                  }
                 />
               ) : (
                 <input
@@ -65,8 +96,10 @@ const PropertiesPanel = ({ block, onSave, onClose }) => {
                 />
               )}
             </div>
-          ))}
+          );
+        })}
         </div>
+
         <div className="properties-footer">
           <button className="btn-cancel" onClick={onClose}>Cancel</button>
           <button className="btn-save" onClick={handleSave}>Save</button>
