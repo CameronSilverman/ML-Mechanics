@@ -41,7 +41,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Create a new project
-// Body: { name: string, data?: { blocks: [...], connections: [...] } }
+// Body: { name: string, data?: { blocks: [...], connections: [...], trainingSettings: {...} } }
 router.post("/", async (req, res) => {
   const { name, data } = req.body;
 
@@ -50,8 +50,9 @@ router.post("/", async (req, res) => {
   }
 
   const canvasData = {
-    blocks: data?.blocks ?? [],
-    connections: data?.connections ?? [],
+    blocks: data?.blocks           ?? [],
+    connections: data?.connections      ?? [],
+    trainingSettings: data?.trainingSettings ?? null,
   };
 
   try {
@@ -69,16 +70,16 @@ router.post("/", async (req, res) => {
 });
 
 // Save (full overwrite) of canvas state
-// Body: { name?: string, data?: { blocks: [...], connections: [...] } }
+// Body: { name?: string, data?: { blocks: [...], connections: [...], trainingSettings: {...} } }
 router.put("/:id", async (req, res) => {
   const { name, data } = req.body;
 
-  // If data is provided, ensure it has the expected shape
   let canvasJson = null;
   if (data !== undefined) {
     canvasJson = JSON.stringify({
-      blocks: data.blocks ?? [],
-      connections: data.connections ?? [],
+      blocks: data.blocks           ?? [],
+      connections: data.connections      ?? [],
+      trainingSettings: data.trainingSettings ?? null,
     });
   }
 
