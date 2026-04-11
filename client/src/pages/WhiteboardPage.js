@@ -16,7 +16,7 @@ import { validatePipeline } from "../utils/pipelineValidator";
 import { checkPipelineWarnings } from "../utils/pipelineWarnings";
 import { generateCode } from "../utils/codeGenerator";
 import { simulateTraining } from "../utils/trainSimulator";
-import { exportPipeline, getMaxBlockId } from "../utils/storageManager";
+import { exportPipeline, getMaxBlockId, stripBlockMeta, hydrateBlocks } from "../utils/storageManager";
 import { projectsAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 
@@ -33,11 +33,7 @@ const WhiteboardPage = () => {
   const [activePanel, setActivePanel] = useState(null);
   const [generatedCode, setGeneratedCode] = useState("");
   const [trainingState, setTrainingState] = useState({
-    status: "idle",
-    currentEpoch: 0,
-    totalEpochs: 0,
-    history: null,
-    summary: null,
+    status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null,
   });
   const [toast, setToast] = useState(null);
   const cancelTrainingRef = useRef(null);
@@ -80,19 +76,17 @@ const WhiteboardPage = () => {
     if (!imp) return;
     lessonImportRef.current = null; // prevent double-run in StrictMode
 
-    const importBlocks = imp.blocks ?? [];
+    const importBlocks = hydrateBlocks(imp.blocks ?? []);
     setBlocks(importBlocks);
     setConnections(imp.connections ?? []);
-    // Merge with defaults so new fields (e.g. testSize) are always present
     setTrainingSettings({ ...DEFAULT_TRAINING_SETTINGS, ...(imp.trainingSettings ?? {}) });
     setIdCounter(getMaxBlockId(importBlocks));
-    setCurrentProject(null); // treat as unsaved — user must Save
+    setCurrentProject(null);
     isDirtyRef.current = true;
 
     const label = imp.sourceName ? `"${imp.sourceName}"` : "Lesson diagram";
     showToast(`${label} opened in workspace — save to keep your changes`, "success");
 
-    // Clear the router state so a hard-refresh doesn't re-import
     navigate("/whiteboard", { replace: true, state: {} });
   }, [showToast, navigate]);
 
@@ -107,10 +101,7 @@ const WhiteboardPage = () => {
       (data) => setTrainingState((prev) => ({ ...prev, currentEpoch: data.epoch, history: data.history })),
       (result) => {
         setTrainingState((prev) => ({
-          ...prev,
-          status: "complete",
-          history: result.history,
-          summary: result.summary,
+          ...prev, status: "complete", history: result.history, summary: result.summary,
         }));
         showToast("Training complete!", "success");
       }
@@ -140,7 +131,11 @@ const WhiteboardPage = () => {
   }, [blocks.length, showToast]);
 
   const doSave = useCallback(async (name) => {
-    const canvasData = { blocks, connections, trainingSettings };
+    const canvasData = {
+      blocks:           stripBlockMeta(blocks),
+      connections,
+      trainingSettings,
+    };
     try {
       if (currentProject) {
         const updated = await projectsAPI.update(currentProject.id, name, canvasData, token);
@@ -174,12 +169,14 @@ const WhiteboardPage = () => {
 
   const handleProjectLoaded = useCallback((fullProject) => {
     const { id, name, data, isTemplate } = fullProject;
-    const loadedBlocks      = data?.blocks           ?? [];
-    const loadedConnections = data?.connections      ?? [];
-    const loadedSettings    = { ...DEFAULT_TRAINING_SETTINGS, ...(data?.trainingSettings ?? {}) };
+    const rawBlocks     = data?.blocks           ?? [];
+    const loadedConns   = data?.connections      ?? [];
+    const loadedSettings = { ...DEFAULT_TRAINING_SETTINGS, ...(data?.trainingSettings ?? {}) };
+
+    const loadedBlocks = hydrateBlocks(rawBlocks);
 
     setBlocks(loadedBlocks);
-    setConnections(loadedConnections);
+    setConnections(loadedConns);
     setTrainingSettings(loadedSettings);
     setIdCounter(getMaxBlockId(loadedBlocks));
     setCurrentProject(isTemplate ? null : { id, name });

@@ -1,8 +1,27 @@
+import { getComponentDef } from "../data/mlComponents";
+
 const STORAGE_KEY = "ml-maker-studio-pipeline";
+
+export const stripBlockMeta = (blocks) =>
+  blocks.map(({ color, icon, ...rest }) => rest);
+
+export const hydrateBlocks = (blocks) =>
+  blocks.map((block) => {
+    const def = getComponentDef(block.type);
+    return {
+      ...block,
+      color: def?.color ?? "#3b82f6",
+      icon:  def?.icon  ?? "▣",
+    };
+  });
 
 export const savePipeline = (blocks, connections) => {
   try {
-    const data = { blocks, connections, savedAt: new Date().toISOString() };
+    const data = {
+      blocks: stripBlockMeta(blocks),
+      connections,
+      savedAt: new Date().toISOString(),
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return { success: true };
   } catch (e) {
@@ -15,7 +34,10 @@ export const loadPipeline = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { success: false, error: "No saved pipeline found" };
     const data = JSON.parse(raw);
-    return { success: true, data };
+    return {
+      success: true,
+      data: { ...data, blocks: hydrateBlocks(data.blocks ?? []) },
+    };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -24,8 +46,8 @@ export const loadPipeline = () => {
 export const exportPipeline = (blocks, connections) => {
   const data = {
     name: "ML Maker Studio Pipeline",
-    version: 1,
-    blocks,
+    version: 2,  // v2 = lean format; color/icon omitted and reconstructed on import
+    blocks: stripBlockMeta(blocks),
     connections,
     exportedAt: new Date().toISOString(),
   };
@@ -44,7 +66,7 @@ export const getMaxBlockId = (blocks) => {
   let max = 0;
   for (const b of blocks) {
     const num = parseInt(b.id.replace("block-", ""), 10);
-    if (num > max) max = num;
+    if (!isNaN(num) && num > max) max = num;
   }
   return max;
 };
