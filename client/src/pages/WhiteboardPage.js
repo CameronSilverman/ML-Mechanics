@@ -12,6 +12,7 @@ import TrainingSettingsPanel, { DEFAULT_TRAINING_SETTINGS } from "../components/
 import AuthModal from "../components/AuthModal";
 import ProjectsModal from "../components/ProjectsModal";
 import SaveModal from "../components/SaveModal";
+import ImportModal from "../components/ImportModal";
 import { validatePipeline } from "../utils/pipelineValidator";
 import { checkPipelineWarnings } from "../utils/pipelineWarnings";
 import { generateCode } from "../utils/codeGenerator";
@@ -43,6 +44,7 @@ const WhiteboardPage = () => {
   const [authModal, setAuthModal] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const lessonImportRef = useRef(location.state?.lessonImport ?? null);
 
@@ -192,20 +194,46 @@ const WhiteboardPage = () => {
   }, [showToast]);
 
   const handleExport = useCallback(() => {
-    exportPipeline(blocks, connections);
+    exportPipeline(blocks, connections, trainingSettings);
     showToast("Pipeline exported!", "success");
-  }, [blocks, connections, showToast]);
+  }, [blocks, connections, trainingSettings, showToast]);
+
+  const handleImportData = useCallback((parsed) => {
+    const rawBlocks      = parsed.blocks      ?? [];
+    const loadedConns    = parsed.connections ?? [];
+    const loadedSettings = { ...DEFAULT_TRAINING_SETTINGS, ...(parsed.trainingSettings ?? {}) };
+
+    const loadedBlocks = hydrateBlocks(rawBlocks);
+
+    setBlocks(loadedBlocks);
+    setConnections(loadedConns);
+    setTrainingSettings(loadedSettings);
+    setIdCounter(getMaxBlockId(loadedBlocks));
+    setCurrentProject(null);
+    setActivePanel(null);
+
+    if (cancelTrainingRef.current) {
+      cancelTrainingRef.current();
+      cancelTrainingRef.current = null;
+    }
+    setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
+    isDirtyRef.current = true;
+
+    showToast(`"${parsed.name || "Pipeline"}" imported — save to keep your changes`, "success");
+  }, [showToast]);
 
   const handleClosePanel = useCallback(() => setActivePanel(null), []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Keybinds!
       if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
       if (e.key === "Escape") setActivePanel(null);
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "o") { e.preventDefault(); handleLoad(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); handleViewCode(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleRun(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "i") { e.preventDefault(); setShowImportModal(true); }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -238,6 +266,7 @@ const WhiteboardPage = () => {
               onSave={handleSave}
               onLoad={handleLoad}
               onExport={handleExport}
+              onImport={() => setShowImportModal(true)}
               isTraining={trainingState.status === "running"}
               isAuthenticated={isAuthenticated}
               onShowAuth={(mode) => setAuthModal(mode)}
@@ -286,6 +315,12 @@ const WhiteboardPage = () => {
           <ProjectsModal
             onLoad={handleProjectLoaded}
             onClose={() => setShowProjectsModal(false)}
+          />
+        )}
+        {showImportModal && (
+          <ImportModal
+            onImport={handleImportData}
+            onClose={() => setShowImportModal(false)}
           />
         )}
       </div>

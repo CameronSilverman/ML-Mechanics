@@ -43,12 +43,13 @@ export const loadPipeline = () => {
   }
 };
 
-export const exportPipeline = (blocks, connections) => {
+export const exportPipeline = (blocks, connections, trainingSettings = null) => {
   const data = {
     name: "ML Maker Studio Pipeline",
     version: 2,  // v2 = lean format; color/icon omitted and reconstructed on import
     blocks: stripBlockMeta(blocks),
     connections,
+    trainingSettings: trainingSettings ?? undefined,
     exportedAt: new Date().toISOString(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

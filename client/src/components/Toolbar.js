@@ -7,6 +7,7 @@ const Toolbar = ({
   onSave,
   onLoad,
   onExport,
+  onImport,
   isTraining,
   isAuthenticated,
   onShowAuth,
@@ -69,6 +70,11 @@ const Toolbar = ({
       <button className="toolbar-btn" onClick={onExport} title="Export as JSON">
         <span>📤</span>
         <span>Export</span>
+      </button>
+
+      <button className="toolbar-btn" onClick={onImport} title="Import from JSON (Ctrl+I)">
+        <span>📥</span>
+        <span>Import</span>
       </button>
 
       <div className="toolbar-divider" />
