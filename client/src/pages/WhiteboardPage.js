@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Canvas, { setIdCounter } from "../components/Canvas";
 import Toolbar from "../components/Toolbar";
@@ -22,6 +22,7 @@ import { useAuth } from "../context/AuthContext";
 
 const WhiteboardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, token } = useAuth();
 
   const [blocks, setBlocks] = useState([]);
@@ -47,6 +48,8 @@ const WhiteboardPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
 
+  const lessonImportRef = useRef(location.state?.lessonImport ?? null);
+
   useEffect(() => {
     setWarnings(checkPipelineWarnings(blocks, connections, trainingSettings));
   }, [blocks, connections, trainingSettings]);
@@ -57,7 +60,6 @@ const WhiteboardPage = () => {
     isDirtyRef.current = true;
   }, [blocks, connections, trainingSettings]);
 
-  // Warn before tab close / reload if there are unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (!isDirtyRef.current) return;
@@ -73,17 +75,33 @@ const WhiteboardPage = () => {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  useEffect(() => {
+    const imp = lessonImportRef.current;
+    if (!imp) return;
+    lessonImportRef.current = null; // prevent double-run in StrictMode
+
+    const importBlocks = imp.blocks ?? [];
+    setBlocks(importBlocks);
+    setConnections(imp.connections ?? []);
+    // Merge with defaults so new fields (e.g. testSize) are always present
+    setTrainingSettings({ ...DEFAULT_TRAINING_SETTINGS, ...(imp.trainingSettings ?? {}) });
+    setIdCounter(getMaxBlockId(importBlocks));
+    setCurrentProject(null); // treat as unsaved — user must Save
+    isDirtyRef.current = true;
+
+    const label = imp.sourceName ? `"${imp.sourceName}"` : "Lesson diagram";
+    showToast(`${label} opened in workspace — save to keep your changes`, "success");
+
+    // Clear the router state so a hard-refresh doesn't re-import
+    navigate("/whiteboard", { replace: true, state: {} });
+  }, [showToast, navigate]);
+
   const handleRun = useCallback(() => {
     const validation = validatePipeline(blocks, connections);
-    if (!validation.valid) {
-      showToast(validation.errors[0], "error");
-      return;
-    }
-
+    if (!validation.valid) { showToast(validation.errors[0], "error"); return; }
     const totalEpochs = trainingSettings.epochs || 10;
     setTrainingState({ status: "running", currentEpoch: 0, totalEpochs, history: null, summary: null });
     setActivePanel("training");
-
     const cancel = simulateTraining(
       totalEpochs,
       (data) => setTrainingState((prev) => ({ ...prev, currentEpoch: data.epoch, history: data.history })),
@@ -119,11 +137,9 @@ const WhiteboardPage = () => {
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     isDirtyRef.current = false;
     showToast("Canvas cleared", "info");
-    // Training settings intentionally preserved across clears
   }, [blocks.length, showToast]);
 
   const doSave = useCallback(async (name) => {
-    // trainingSettings is included in the saved data so it's restored with the project
     const canvasData = { blocks, connections, trainingSettings };
     try {
       if (currentProject) {
@@ -157,16 +173,16 @@ const WhiteboardPage = () => {
   }, [isAuthenticated]);
 
   const handleProjectLoaded = useCallback((fullProject) => {
-    const { id, name, data } = fullProject;
+    const { id, name, data, isTemplate } = fullProject;
     const loadedBlocks      = data?.blocks           ?? [];
     const loadedConnections = data?.connections      ?? [];
-    const loadedSettings    = data?.trainingSettings ?? DEFAULT_TRAINING_SETTINGS;
+    const loadedSettings    = { ...DEFAULT_TRAINING_SETTINGS, ...(data?.trainingSettings ?? {}) };
 
     setBlocks(loadedBlocks);
     setConnections(loadedConnections);
     setTrainingSettings(loadedSettings);
     setIdCounter(getMaxBlockId(loadedBlocks));
-    setCurrentProject({ id, name });
+    setCurrentProject(isTemplate ? null : { id, name });
     setActivePanel(null);
 
     if (cancelTrainingRef.current) {
@@ -174,9 +190,8 @@ const WhiteboardPage = () => {
       cancelTrainingRef.current = null;
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
-    isDirtyRef.current = false;
-    showToast(`"${name}" loaded`, "success");
-    // warnings recompute automatically via the useEffect
+    isDirtyRef.current = isTemplate;
+    showToast(isTemplate ? `Template "${name}" loaded` : `"${name}" loaded`, "success");
   }, [showToast]);
 
   const handleExport = useCallback(() => {
@@ -205,15 +220,16 @@ const WhiteboardPage = () => {
         <Sidebar />
         <div className="canvas-wrapper">
 
-          {/* Top toolbar */}
           <div className="canvas-toolbar">
-            <button 
-              className="toolbar-home-btn" 
+            <button
+              className="toolbar-home-btn"
               onClick={() => {
                 if (isDirtyRef.current && !window.confirm("You have unsaved changes. Leave without saving?"))
-                  return; 
-                navigate("/");}} 
-              title="Go to home">
+                  return;
+                navigate("/");
+              }}
+              title="Go to home"
+            >
               <span className="toolbar-logo">⬡</span>
               <span className="toolbar-title">ML Maker Studio</span>
             </button>
@@ -233,13 +249,11 @@ const WhiteboardPage = () => {
             />
           </div>
 
-          {/* Training settings bar */}
           <TrainingSettingsPanel
             settings={trainingSettings}
             onChange={setTrainingSettings}
           />
 
-          {/* Canvas + side panels */}
           <div className="canvas-area">
             <Canvas
               blocks={blocks}
@@ -256,14 +270,10 @@ const WhiteboardPage = () => {
             )}
           </div>
 
-          {/* Diagnostics strip */}
           <ErrorLogPanel warnings={warnings} />
-
         </div>
 
-        {toast && (
-          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-        )}
+        {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
 
         {authModal && (
           <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
@@ -272,18 +282,13 @@ const WhiteboardPage = () => {
           <SaveModal
             onSave={doSave}
             onClose={() => setShowSaveModal(false)}
-            defaultName=""
+            defaultName={currentProject?.name ?? ""}
           />
         )}
         {showProjectsModal && (
           <ProjectsModal
             onLoad={handleProjectLoaded}
             onClose={() => setShowProjectsModal(false)}
-            onRename={(id, newName) => {
-              if (currentProject?.id === id) {
-                setCurrentProject((prev) => ({ ...prev, name: newName }));
-              }
-            }}
           />
         )}
       </div>

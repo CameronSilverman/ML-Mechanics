@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   loss: "SparseCategoricalCrossentropy",
   epochs: 10,
   batchSize: 32,
+  testSize: 0.2,
 };
 
 export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
@@ -31,15 +32,16 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   ]);
 
   const blockVars = {};
-
-  const preLines = [];
+  const preLines  = [];
   const modelLines = [];
-  const postLines = [];
+  const postLines  = [];
 
-  let inputVar = null;
+  let inputVar  = null;
   let outputVar = null;
-
   let compileMetrics = ["accuracy"];
+
+  let hasCSVLoader      = false;
+  let hasTrainTestSplit = false;
 
   const getInputVar = (block, portId = "in") => {
     const conn = block.connectedInputs?.[portId];
@@ -52,10 +54,8 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
 
     switch (block.type) {
 
-      // Data
-
       case "ImageLoader": {
-        const dsMap = { "CIFAR-10": "cifar10", MNIST: "mnist" };
+        const dsMap = { "CIFAR-10": "cifar10", MNIST: "mnist", "CIFAR-100": "cifar100" };
         const ds = dsMap[p.dataset] || "cifar10";
 
         preLines.push(
@@ -65,7 +65,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
           `x_test  = x_test.astype("float32")  / 255.0`,
         );
 
-        // MNIST has no channel dim - add it so Conv2D works out of the box
         if (p.dataset === "MNIST") {
           preLines.push(
             `x_train = x_train[..., tf.newaxis]`,
@@ -73,7 +72,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
           );
         }
 
-        // Shuffle training data when true
         if (p.shuffle) {
           imports.add("import numpy as np");
           preLines.push(
@@ -87,6 +85,7 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
       }
 
       case "CSVLoader": {
+        hasCSVLoader = true;
         imports.add("import pandas as pd");
         preLines.push(
           `df = pd.read_csv(` +
@@ -101,6 +100,9 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
       }
 
       case "TrainTestSplit": {
+        // Legacy block — still generates correct code but users are encouraged
+        // to use the Training Settings "Test Split" field instead.
+        hasTrainTestSplit = true;
         imports.add("from sklearn.model_selection import train_test_split");
         preLines.push(
           `x_train, x_test, y_train, y_test = train_test_split(` +
@@ -118,6 +120,22 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
         modelLines.push(`inputs = layers.Input(shape=(${p.shape || "28,28,1"}))`);
         blockVars[block.id] = "inputs";
         inputVar = "inputs";
+        break;
+      }
+
+      case "Reshape": {
+        const dims = (p.targetShape || "128")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const shapeTuple = dims.length === 1
+          ? `(${dims[0]},)`
+          : `(${dims.join(", ")})`;
+        modelLines.push(
+          `${v} = layers.Reshape(${shapeTuple})(${getInputVar(block)})`,
+        );
+        blockVars[block.id] = v;
+        outputVar = v;
         break;
       }
 
@@ -220,6 +238,19 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
     }
   }
 
+  if (hasCSVLoader && !hasTrainTestSplit) {
+    imports.add("from sklearn.model_selection import train_test_split");
+    preLines.push(
+      ``,
+      `# Split into train / test sets`,
+      `x_train, x_test, y_train, y_test = train_test_split(` +
+        `x_data, y_data, ` +
+        `test_size=${ts.testSize ?? 0.2}, ` +
+        `random_state=42` +
+      `)`,
+    );
+  }
+
   // Build Functional API model
 
   if (inputVar && outputVar) {
@@ -261,8 +292,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
     `)`,
   );
 
-  // Out 
-  
   return [
     [...imports].join("\n"),
     "",

@@ -1,7 +1,7 @@
 import { getComponentDef } from "../data/mlComponents";
 
 const DATA_SOURCES = ["ImageLoader", "CSVLoader"];
-const LAYER_TYPES = ["Dense", "Conv2D", "MaxPool2D", "Flatten", "Dropout", "ReLU", "Softmax", "Sigmoid"];
+const LAYER_TYPES = ["Dense", "Conv2D", "MaxPool2D", "Flatten", "Dropout", "Reshape", "ReLU", "Softmax", "Sigmoid"];
 
 export const validatePipeline = (blocks, connections) => {
   const errors = [];
@@ -72,12 +72,11 @@ export const topologicalSortFromBlocks = (blocks) => {
     }
   }
 
-  const queue = [];
+  const queue  = [];
+  const sorted = [];
   for (const id of Object.keys(inDegree)) {
     if (inDegree[id] === 0) queue.push(id);
   }
-
-  const sorted = [];
   while (queue.length > 0) {
     const node = queue.shift();
     sorted.push(blockMap[node]);

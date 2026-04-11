@@ -26,18 +26,9 @@ export const DEFAULT_TRAINING_SETTINGS = {
   loss: "SparseCategoricalCrossentropy",
   epochs: 10,
   batchSize: 32,
+  testSize: 0.2,
 };
 
-/**
- * TrainingSettingsPanel
- *
- * Props:
- *   settings    — current training settings object
- *   onChange    — (newSettings) => void
- *   lessonLock  — boolean — when true, all controls are disabled and a lock
- *                 indicator is shown. The lesson sets fixed training parameters
- *                 so the learner stays focused on the architecture task.
- */
 const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
   const [open, setOpen] = useState(true);
 
@@ -46,12 +37,15 @@ const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
     onChange({ ...settings, [key]: value });
   };
 
+  const testSize = settings.testSize ?? 0.2;
+
   const summary = [
     settings.optimizer,
     `lr=${settings.learningRate}`,
     LOSS_SHORT[settings.loss] || settings.loss,
     `${settings.epochs} epochs`,
     `batch ${settings.batchSize}`,
+    `split ${Math.round(testSize * 100)}%`,
   ].join(" · ");
 
   return (
@@ -61,7 +55,6 @@ const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
         onClick={!open ? () => setOpen(true) : undefined}
         style={{ cursor: open ? "default" : "pointer" }}
       >
-        {/* Label — always visible */}
         <span className="tsbar-label">
           <span className="tsbar-icon">⚙</span>
           Training
@@ -74,7 +67,6 @@ const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
         )}
 
         {open ? (
-          /* Expanded controls */
           <>
             <div className="tsbar-sep" />
 
@@ -145,7 +137,7 @@ const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
             </div>
 
             <div className="tsbar-group">
-              <label className="tsbar-field-label">Batch Size</label>
+              <label className="tsbar-field-label">Batch</label>
               <input
                 className="tsbar-input tsbar-input-xs"
                 type="number"
@@ -159,9 +151,32 @@ const TrainingSettingsPanel = ({ settings, onChange, lessonLock = false }) => {
                 disabled={lessonLock}
               />
             </div>
+
+            <div className="tsbar-sep" />
+            
+            <div className="tsbar-group">
+              <label
+                className="tsbar-field-label"
+                title="Fraction of data held out as the test set. Applies to CSV pipelines; ImageLoader datasets have built-in splits."
+              >
+                Test Split
+              </label>
+              <input
+                className="tsbar-input tsbar-input-sm"
+                type="number"
+                step="0.05"
+                min="0.05"
+                max="0.5"
+                value={testSize}
+                onChange={(e) =>
+                  update("testSize", parseFloat(e.target.value) || 0.2)
+                }
+                onClick={(e) => e.stopPropagation()}
+                disabled={lessonLock}
+              />
+            </div>
           </>
         ) : (
-          /* Collapsed summary */
           <span className="tsbar-summary">{summary}</span>
         )}
 

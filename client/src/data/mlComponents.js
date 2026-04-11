@@ -44,6 +44,15 @@ const ML_COMPONENTS = {
       outputs: [{ id: "out", type: "data", label: "Output" }],
     },
     {
+      type: "Reshape",
+      label: "Reshape",
+      icon: "⊡",
+      color: "#8b5cf6",
+      defaults: { targetShape: "784" },
+      inputs: [{ id: "in", type: "data", label: "Input" }],
+      outputs: [{ id: "out", type: "data", label: "Output" }],
+    },
+    {
       type: "Concatenate",
       label: "Concatenate",
       icon: "⇌",
