@@ -107,6 +107,7 @@ const WhiteboardPage = () => {
 
   const handleClear = useCallback(() => {
     if (blocks.length === 0) return;
+    if (!window.confirm("Clear the canvas? This cannot be undone.")) return;
     setBlocks([]);
     setConnections([]);
     setActivePanel(null);
