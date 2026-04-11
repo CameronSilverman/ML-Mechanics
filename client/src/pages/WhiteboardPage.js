@@ -53,8 +53,10 @@ const WhiteboardPage = () => {
   }, [blocks, connections, trainingSettings]);
 
   const isFirstRender = useRef(true);
+  const suppressDirtyRef = useRef(false);
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (suppressDirtyRef.current) { suppressDirtyRef.current = false; return; }
     isDirtyRef.current = true;
   }, [blocks, connections, trainingSettings]);
 
@@ -119,6 +121,7 @@ const WhiteboardPage = () => {
   const handleClear = useCallback(() => {
     if (blocks.length === 0) return;
     if (!window.confirm("Clear the canvas? This cannot be undone.")) return;
+    suppressDirtyRef.current = true;
     setBlocks([]);
     setConnections([]);
     setActivePanel(null);
@@ -178,6 +181,7 @@ const WhiteboardPage = () => {
     const loadedBlocks = hydrateBlocks(rawBlocks);
 
     setBlocks(loadedBlocks);
+    if (!isTemplate) suppressDirtyRef.current = true;
     setConnections(loadedConns);
     setTrainingSettings(loadedSettings);
     setIdCounter(getMaxBlockId(loadedBlocks));
