@@ -46,8 +46,12 @@ export const checkPipelineWarnings = (blocks, connections, trainingSettings = {}
   }
 
   const evaluateBlock = blocks.find((b) => b.type === "Evaluate");
-  if (evaluateBlock && !evaluateBlock.connectedInputs?.in) {
-    push("warning", "Evaluate block: no model output connected to its input port.");
+  if (evaluateBlock) {
+    if (!evaluateBlock.connectedInputs?.in) {
+      push("warning", "Evaluate block: connect a model output to its input port.");
+    } else {
+      push("info", "Evaluate block: will run model.evaluate() on x_test/y_test after training.");
+    }
   }
 
   // Training settings validation
