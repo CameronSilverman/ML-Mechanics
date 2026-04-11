@@ -545,16 +545,16 @@ const LessonPage = () => {
                 <span>Code</span>
               </button>
 
-              <div className="toolbar-divider" />
+              {/* <div className="toolbar-divider" /> */}
 
-              <button
+              {/* <button
                 className="toolbar-btn toolbar-btn-auth"
                 onClick={() => navigate("/learn")}
                 title="Back to all lessons"
               >
                 <span>☰</span>
                 <span>Lessons</span>
-              </button>
+              </button> */}
             </div>
           </div>
 
