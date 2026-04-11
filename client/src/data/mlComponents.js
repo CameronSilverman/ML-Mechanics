@@ -1,3 +1,5 @@
+const ACTIVATIONS = ["relu", "sigmoid", "softmax", "tanh", "linear", "selu", "elu", "gelu"];
+
 const ML_COMPONENTS = {
   Data: [
     {
@@ -6,6 +8,9 @@ const ML_COMPONENTS = {
       icon: "📷",
       color: "#10b981",
       defaults: { dataset: "CIFAR-10", batchSize: 32, shuffle: true },
+      propertyDefs: {
+        dataset: { type: "select", options: ["CIFAR-10", "MNIST", "CIFAR-100"] },
+      },
       inputs: [],
       outputs: [{ id: "out", type: "data", label: "Data" }],
     },
@@ -58,6 +63,9 @@ const ML_COMPONENTS = {
       icon: "▣",
       color: "#3b82f6",
       defaults: { units: 128, activation: "relu" },
+      propertyDefs: {
+        activation: { type: "select", options: ACTIVATIONS },
+      },
       inputs: [{ id: "in", type: "data", label: "Input" }],
       outputs: [{ id: "out", type: "data", label: "Output" }],
     },
@@ -67,6 +75,10 @@ const ML_COMPONENTS = {
       icon: "⊞",
       color: "#2563eb",
       defaults: { filters: 32, kernelSize: 3, activation: "relu", padding: "same" },
+      propertyDefs: {
+        activation: { type: "select", options: ACTIVATIONS },
+        padding:    { type: "select", options: ["same", "valid"] },
+      },
       inputs: [{ id: "in", type: "data", label: "Input" }],
       outputs: [{ id: "out", type: "data", label: "Output" }],
     },
@@ -134,6 +146,12 @@ const ML_COMPONENTS = {
       icon: "📋",
       color: "#ef4444",
       defaults: { metrics: "accuracy" },
+      propertyDefs: {
+        metrics: {
+          type: "select",
+          options: ["accuracy", "binary_accuracy", "categorical_accuracy", "mae", "mse"],
+        },
+      },
       inputs: [{ id: "in", type: "data", label: "Model" }],
       outputs: [],
     },

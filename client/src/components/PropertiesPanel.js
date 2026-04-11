@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getComponentDef } from "../data/mlComponents";
 
 /**
  * PropertiesPanel
@@ -19,6 +20,9 @@ const PropertiesPanel = ({ block, onSave, onClose, lockedProperties = [] }) => {
 
   if (!block) return null;
 
+  const def = getComponentDef(block.type);
+  const propertyDefs = def?.propertyDefs || {};
+  
   const handleChange = (key, value) => {
     setProperties((prev) => ({ ...prev, [key]: value }));
   };
@@ -52,52 +56,60 @@ const PropertiesPanel = ({ block, onSave, onClose, lockedProperties = [] }) => {
           )}
 
           {entries.map(([key, val]) => {
-          const isLocked = lockedProperties.includes(key);
+            const isLocked  = lockedProperties.includes(key);
+            const fieldDef  = propertyDefs[key];           // ← look up def
 
-          return (
-            <div key={key} className="properties-field">
-              <label>
-                {key}
-                {/* Lock badge — shown next to the label when the property is frozen */}
-                {isLocked && (
-                  <span className="prop-locked-badge" title="Locked by lesson">
-                    🔒 lesson
-                  </span>
+            return (
+              <div key={key} className="properties-field">
+                <label>
+                  {key}
+                  {isLocked && (
+                    <span className="prop-locked-badge" title="Locked by lesson">
+                      🔒 lesson
+                    </span>
+                  )}
+                </label>
+
+                {isLocked ? (
+                  <div className="prop-locked-value">{String(val)}</div>
+
+                ) : fieldDef?.type === "select" ? (        // ← new: select branch
+                  <select
+                    value={val}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                  >
+                    {fieldDef.options.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+
+                ) : typeof val === "boolean" ? (
+                  <select
+                    value={String(val)}
+                    onChange={(e) => handleChange(key, e.target.value === "true")}
+                  >
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </select>
+
+                ) : typeof val === "number" ? (
+                  <input
+                    type="number"
+                    value={val}
+                    step={val < 1 ? 0.001 : 1}
+                    onChange={(e) => handleChange(key, parseFloat(e.target.value) || 0)}
+                  />
+
+                ) : (
+                  <input
+                    type="text"
+                    value={val}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                  />
                 )}
-              </label>
-
-              {isLocked ? (
-                // Read-only display for locked properties
-                <div className="prop-locked-value">{String(val)}</div>
-              ) : typeof val === "boolean" ? (
-                <select
-                  value={String(val)}
-                  onChange={(e) =>
-                    handleChange(key, e.target.value === "true")
-                  }
-                >
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
-              ) : typeof val === "number" ? (
-                <input
-                  type="number"
-                  value={val}
-                  step={val < 1 ? 0.001 : 1}
-                  onChange={(e) =>
-                    handleChange(key, parseFloat(e.target.value) || 0)
-                  }
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={val}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                />
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
         </div>
 
         <div className="properties-footer">
