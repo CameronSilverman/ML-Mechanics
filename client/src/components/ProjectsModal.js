@@ -179,7 +179,7 @@ const ProjectsTab = ({ onLoad, onClose }) => {
 };
 
 const ProjectsModal = ({ onLoad, onClose }) => {
-  const [activeTab, setActiveTab] = useState("templates");
+  const [activeTab, setActiveTab] = useState("projects");
 
   const handleTemplateSelect = (template) => {
     onLoad({
@@ -205,16 +205,16 @@ const ProjectsModal = ({ onLoad, onClose }) => {
 
         <div className="modal-tab-bar">
           <button
-            className={`modal-tab${activeTab === "templates" ? " modal-tab-active" : ""}`}
-            onClick={() => setActiveTab("templates")}
-          >
-            ◈ Templates
-          </button>
-          <button
             className={`modal-tab${activeTab === "projects" ? " modal-tab-active" : ""}`}
             onClick={() => setActiveTab("projects")}
           >
             📂 Your Projects
+          </button>
+          <button
+            className={`modal-tab${activeTab === "templates" ? " modal-tab-active" : ""}`}
+            onClick={() => setActiveTab("templates")}
+          >
+            ◈ Templates
           </button>
         </div>
 
