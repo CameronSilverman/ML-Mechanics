@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { projectsAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 
-const ProjectsModal = ({ onLoad, onClose }) => {
+const ProjectsModal = ({ onLoad, onClose, onRename }) => {
   const { token } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
+  const [projects, setProjects]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+  const [deleting, setDeleting]     = useState(null);
+  const [loadingId, setLoadingId]   = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameVal, setRenameVal]   = useState("");
 
   useEffect(() => {
     projectsAPI.list(token)
@@ -18,6 +20,7 @@ const ProjectsModal = ({ onLoad, onClose }) => {
   }, [token]);
 
   const handleLoad = async (project) => {
+    if (renamingId) return;
     setLoadingId(project.id);
     try {
       const full = await projectsAPI.get(project.id, token);
@@ -40,6 +43,38 @@ const ProjectsModal = ({ onLoad, onClose }) => {
     } finally {
       setDeleting(null);
     }
+  };
+
+  const startRename = (e, project) => {
+    e.stopPropagation();
+    setRenamingId(project.id);
+    setRenameVal(project.name);
+  };
+
+  const commitRename = async (id) => {
+    const trimmed = renameVal.trim();
+    if (!trimmed) { cancelRename(); return; }
+    try {
+      await projectsAPI.rename(id, trimmed, token);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p))
+      );
+      onRename?.(id, trimmed);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      cancelRename();
+    }
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameVal("");
+  };
+
+  const handleRenameKey = (e, id) => {
+    if (e.key === "Enter")  commitRename(id);
+    if (e.key === "Escape") cancelRename();
   };
 
   const formatDate = (iso) => {
@@ -69,26 +104,48 @@ const ProjectsModal = ({ onLoad, onClose }) => {
               key={p.id}
               className={`project-row ${loadingId === p.id ? "project-row-loading" : ""}`}
               onClick={() => handleLoad(p)}
-              title="Click to open"
+              title={renamingId === p.id ? undefined : "Click to open"}
             >
               <div className="project-row-info">
-                <span className="project-row-name">{p.name}</span>
+                {renamingId === p.id ? (
+                  <input
+                    className="project-rename-input"
+                    value={renameVal}
+                    autoFocus
+                    onChange={(e) => setRenameVal(e.target.value)}
+                    onKeyDown={(e) => handleRenameKey(e, p.id)}
+                    onBlur={() => commitRename(p.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="project-row-name">{p.name}</span>
+                )}
                 <span className="project-row-meta">
                   {p.block_count ?? 0} block{p.block_count !== 1 ? "s" : ""} · Updated {formatDate(p.updated_at)}
                 </span>
               </div>
+
               <div className="project-row-actions">
                 {loadingId === p.id ? (
                   <span className="project-row-loading-dot">…</span>
-                ) : (
-                  <button
-                    className="project-row-delete"
-                    onClick={(e) => handleDelete(e, p.id)}
-                    disabled={deleting === p.id}
-                    title="Delete project"
-                  >
-                    {deleting === p.id ? "…" : "✕"}
-                  </button>
+                ) : renamingId === p.id ? null : (
+                  <>
+                    <button
+                      className="project-row-rename"
+                      onClick={(e) => startRename(e, p)}
+                      title="Rename project"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="project-row-delete"
+                      onClick={(e) => handleDelete(e, p.id)}
+                      disabled={deleting === p.id}
+                      title="Delete project"
+                    >
+                      {deleting === p.id ? "…" : "✕"}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

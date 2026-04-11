@@ -1394,6 +1394,44 @@ body {
   color: var(--text-dim);
 }
 
+.project-row-rename {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  opacity: 0;
+}
+
+.project-row:hover .project-row-rename {
+  opacity: 1;
+}
+
+.project-row-rename:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+
+.project-rename-input {
+  width: 100%;
+  padding: 0.2rem 0.4rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* Scrollbar */
 
 ::-webkit-scrollbar       { width: 6px; height: 6px; }

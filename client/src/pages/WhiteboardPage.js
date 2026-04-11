@@ -279,6 +279,11 @@ const WhiteboardPage = () => {
           <ProjectsModal
             onLoad={handleProjectLoaded}
             onClose={() => setShowProjectsModal(false)}
+            onRename={(id, newName) => {
+              if (currentProject?.id === id) {
+                setCurrentProject((prev) => ({ ...prev, name: newName }));
+              }
+            }}
           />
         )}
       </div>

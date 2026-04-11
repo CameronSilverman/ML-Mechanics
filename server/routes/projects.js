@@ -75,10 +75,10 @@ router.put("/:id", async (req, res) => {
   const { name, data } = req.body;
 
   let canvasJson = null;
-  if (data !== undefined) {
+  if (data !== undefined && data !== null) {
     canvasJson = JSON.stringify({
-      blocks: data.blocks           ?? [],
-      connections: data.connections      ?? [],
+      blocks:           data.blocks           ?? [],
+      connections:      data.connections      ?? [],
       trainingSettings: data.trainingSettings ?? null,
     });
   }

@@ -41,6 +41,12 @@ export const projectsAPI = {
       method: "PUT",
       body: JSON.stringify({ name, data }),
     }, token),
+  
+  rename: (id, name, token) =>
+    request(`/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),   // data intentionally omitted → server preserves existing
+    }, token),
 
   delete: (id, token) =>
     request(`/projects/${id}`, { method: "DELETE" }, token),
