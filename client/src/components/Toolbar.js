@@ -11,14 +11,17 @@ const Toolbar = ({
   isAuthenticated,
   onShowAuth,
   currentProjectName,
+  runDisabled,
 }) => {
   return (
     <div className="toolbar-actions">
       <button
         className="toolbar-btn toolbar-btn-primary"
         onClick={onRun}
-        disabled={isTraining}
-        title="Run pipeline (Ctrl+Enter)"
+        disabled={isTraining || runDisabled}
+        title={runDisabled
+          ? "Live training is coming soon — use Code view to export your model"
+          : "Run pipeline (Ctrl+Enter)"}
       >
         <span>{isTraining ? "⏳" : "▶"}</span>
         <span>{isTraining ? "Training…" : "Run"}</span>

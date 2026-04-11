@@ -527,8 +527,10 @@ const LessonPage = () => {
               <button
                 className="toolbar-btn toolbar-btn-primary"
                 onClick={handleRun}
-                disabled={trainingState.status === "running"}
-                title="Run pipeline (Ctrl+Enter)"
+                // disabled={trainingState.status === "running"}
+                disabled = {true}
+                // title="Run pipeline (Ctrl+Enter)"
+                title="Live training is coming soon — use Code view to export your model"
               >
                 <span>{trainingState.status === "running" ? "⏳" : "▶"}</span>
                 <span>{trainingState.status === "running" ? "Training…" : "Run"}</span>

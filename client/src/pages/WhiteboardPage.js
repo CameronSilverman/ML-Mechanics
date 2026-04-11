@@ -228,6 +228,7 @@ const WhiteboardPage = () => {
               isAuthenticated={isAuthenticated}
               onShowAuth={(mode) => setAuthModal(mode)}
               currentProjectName={currentProject?.name}
+              runDisabled={true}
             />
           </div>
 
