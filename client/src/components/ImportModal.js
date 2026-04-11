@@ -31,6 +31,7 @@ const ImportModal = ({ onImport, onClose }) => {
 
   const handleLoad = () => {
     if (!preview) { validate(raw); return; }
+    if (!window.confirm("Warning: Importing will clear your current diagram! Continue?")) return;
     onImport(preview.parsed);
     onClose();
   };
