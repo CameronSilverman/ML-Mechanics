@@ -53,6 +53,17 @@ export const checkPipelineWarnings = (blocks, connections, trainingSettings = {}
       push("info", "Evaluate block: will run model.evaluate() on x_test/y_test after training.");
     }
   }
+  
+  const STANDALONE_ACTS = ["ReLU", "Softmax", "Sigmoid"];
+  const standaloneActBlocks = blocks.filter((b) => STANDALONE_ACTS.includes(b.type));
+  if (standaloneActBlocks.length > 0) {
+    push(
+      "info",
+      `Standalone activation block${standaloneActBlocks.length > 1 ? "s" : ""} detected ` +
+      `(${standaloneActBlocks.map((b) => b.label).join(", ")}). ` +
+      `Consider using the "activation" property on the preceding layer instead.`
+    );
+  }
 
   // Training settings validation
 
