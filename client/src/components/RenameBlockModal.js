@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 
-// ─── Validation ──────────────────────────────────────────────────────────────
-
 const BLOCK_ID_PATTERN = /^block[_-]\d+$/;
 
 const PYTHON_KEYWORDS = new Set([
@@ -12,19 +10,9 @@ const PYTHON_KEYWORDS = new Set([
   "while", "with", "yield",
 ]);
 
-/**
- * Validate a proposed custom_id value.
- *
- * @param {string}      name           - Proposed name (trimmed)
- * @param {Set<string>} customIdSet    - Current set of taken custom_ids
- * @param {string|null} currentCustomId - The block's existing custom_id (to allow no-op saves)
- * @returns {{ valid: boolean, error?: string }}
- */
 export const validateCustomId = (name, customIdSet, currentCustomId = null) => {
-  // Empty → valid (means "reset to default")
   if (!name) return { valid: true };
 
-  // Must be a valid Python identifier
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
     return {
       valid: false,
@@ -53,24 +41,11 @@ export const validateCustomId = (name, customIdSet, currentCustomId = null) => {
   return { valid: true };
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
-/**
- * RenameBlockModal
- *
- * Props:
- *   block         — the canvas block being renamed
- *   customIdSet   — Set<string> of all currently-taken custom_ids
- *   onSave        — (blockId: string, newCustomId: string | null) => void
- *                     Pass null to clear (reset to default)
- *   onClose       — () => void
- */
-const RenameBlockModal = ({ block, customIdSet, onSave, onClose }) => {
+const RenameBlockModal = ({ block, customIdSet, onSave, onClose, inputCount = 1 }) => {
   const [value, setValue] = useState(block.custom_id || "");
   const [submitError, setSubmitError] = useState("");
 
-  // Default variable name that would be used if no custom_id is set
-  const defaultVarName = block.type === "Input"
+  const defaultVarName = block.type === "Input" && inputCount === 1
     ? "inputs"
     : block.id.replace(/-/g, "_");
 
@@ -117,7 +92,6 @@ const RenameBlockModal = ({ block, customIdSet, onSave, onClose }) => {
         </div>
 
         <div className="modal-body">
-          {/* Block identity chip */}
           <div className="rename-block-chip">
             <span className="rename-block-dot" style={{ color: block.color }}>●</span>
             <span className="rename-block-label-text">{block.label}</span>
@@ -152,7 +126,6 @@ const RenameBlockModal = ({ block, customIdSet, onSave, onClose }) => {
         </div>
 
         <div className="modal-footer rename-modal-footer">
-          {/* Reset lives on the left */}
           {block.custom_id && (
             <button
               className="btn-cancel rename-reset-btn"

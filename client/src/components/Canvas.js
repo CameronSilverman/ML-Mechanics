@@ -546,6 +546,7 @@ const Canvas = ({
         <RenameBlockModal
           block={renamingBlock}
           customIdSet={customIdSetRef.current}
+          inputCount={blocks.filter((b) => b.type === "Input").length}
           onSave={handleRename}
           onClose={() => setRenamingBlockId(null)}
         />

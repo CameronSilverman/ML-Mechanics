@@ -2,9 +2,9 @@ import { topologicalSortFromBlocks } from "./pipelineValidator";
 
 const safeVar = (id) => id.replace(/-/g, "_");
 
-const blockVar = (block) => {
+const blockVar = (block, inputCount = 1) => {
   if (block.custom_id) return block.custom_id;
-  if (block.type === "Input") return "inputs";
+  if (block.type === "Input" && inputCount === 1) return "inputs";
   return safeVar(block.id);
 };
 
@@ -32,6 +32,9 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   const ts = { ...DEFAULT_SETTINGS, ...trainingSettings };
 
   const sorted = topologicalSortFromBlocks(blocks);
+
+  const inputCount = blocks.filter((b) => b.type === "Input").length;
+
   const imports = new Set([
     "import tensorflow as tf",
     "from tensorflow.keras import layers, models",
@@ -42,9 +45,9 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   const modelLines = [];
   const postLines  = [];
 
-  let inputVar  = null;
-  let outputVar = null;
-  let compileMetrics = ["accuracy"];
+  const inputVars  = [];
+  let   outputVar  = null;
+  let   compileMetrics = ["accuracy"];
 
   let hasCSVLoader      = false;
   let hasTrainTestSplit = false;
@@ -56,7 +59,7 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
 
   for (const block of sorted) {
     const p = block.properties;
-    const v = blockVar(block);
+    const v = blockVar(block, inputCount);
 
     switch (block.type) {
 
@@ -126,7 +129,7 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
         // v is "inputs" by default (from blockVar), or a custom_id if set
         modelLines.push(`${v} = layers.Input(shape=(${p.shape || "28,28,1"}))`);
         blockVars[block.id] = v;
-        inputVar = v;
+        inputVars.push(v);
         break;
       }
 
@@ -259,11 +262,15 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   }
 
   // Build Functional API model
-  if (inputVar && outputVar) {
+  if (inputVars.length > 0 && outputVar) {
+    const inputsArg = inputVars.length === 1
+      ? inputVars[0]
+      : `[${inputVars.join(", ")}]`;
+
     modelLines.push(
       ``,
       `# Build model`,
-      `model = models.Model(inputs=${inputVar}, outputs=${outputVar})`,
+      `model = models.Model(inputs=${inputsArg}, outputs=${outputVar})`,
     );
   }
 
