@@ -2,6 +2,12 @@ import { topologicalSortFromBlocks } from "./pipelineValidator";
 
 const safeVar = (id) => id.replace(/-/g, "_");
 
+const blockVar = (block) => {
+  if (block.custom_id) return block.custom_id;
+  if (block.type === "Input") return "inputs";
+  return safeVar(block.id);
+};
+
 const toSnakeCase = (s) =>
   s.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 
@@ -50,7 +56,7 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
 
   for (const block of sorted) {
     const p = block.properties;
-    const v = safeVar(block.id);
+    const v = blockVar(block);
 
     switch (block.type) {
 
@@ -117,9 +123,10 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
       // Structure 
 
       case "Input": {
-        modelLines.push(`inputs = layers.Input(shape=(${p.shape || "28,28,1"}))`);
-        blockVars[block.id] = "inputs";
-        inputVar = "inputs";
+        // v is "inputs" by default (from blockVar), or a custom_id if set
+        modelLines.push(`${v} = layers.Input(shape=(${p.shape || "28,28,1"}))`);
+        blockVars[block.id] = v;
+        inputVar = v;
         break;
       }
 
@@ -252,7 +259,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   }
 
   // Build Functional API model
-
   if (inputVar && outputVar) {
     modelLines.push(
       ``,
@@ -262,7 +268,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   }
 
   // Compile
-
   const optimizerStr =
     `tf.keras.optimizers.${ts.optimizer}(learning_rate=${ts.learningRate})`;
   const lossStr = `"${toSnakeCase(ts.loss)}"`;
@@ -279,7 +284,6 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
   );
 
   // Train
-
   modelLines.push(
     ``,
     `# Train`,

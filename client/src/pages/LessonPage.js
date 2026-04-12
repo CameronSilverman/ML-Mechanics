@@ -37,6 +37,9 @@ const createInitialBlocks = (lesson) =>
     })
     .filter(Boolean);
 
+const buildCustomIdSet = (blocks) =>
+  new Set(blocks.filter((b) => b.custom_id).map((b) => b.custom_id));
+
 const PY_KEYWORDS = new Set([
   "import", "from", "as", "def", "class", "return", "if", "else",
   "for", "in", "while", "True", "False", "None", "print",
@@ -332,6 +335,8 @@ const LessonPage = () => {
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const cancelTrainingRef                   = useRef(null);
 
+  const customIdSetRef = useRef(new Set());
+
   const trainingSettings = lesson?.lockedTrainingSettings ?? {
     optimizer: "Adam",
     learningRate: 0.001,
@@ -347,6 +352,7 @@ const LessonPage = () => {
     setBlocks(initial);
     setConnections([]);
     setIdCounter(Math.max(initial.length, 0) + 1);
+    customIdSetRef.current = buildCustomIdSet(initial);
   }, [lessonId]);
 
   useEffect(() => {
@@ -493,6 +499,7 @@ const LessonPage = () => {
               connections={connections}
               setConnections={setConnections}
               onToast={showToast}
+              customIdSetRef={customIdSetRef}
             />
             {activePanel === "code" && (
               <CodeViewerPanel code={generatedCode} onClose={handleClosePanel} />

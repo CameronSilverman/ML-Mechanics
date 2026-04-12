@@ -13,6 +13,7 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
   const inputs = def?.inputs || [];
   const outputs = def?.outputs || [];
   const propEntries = Object.entries(block.properties);
+  const hasBody = block.custom_id || propEntries.length > 0;
 
   return (
     <div
@@ -34,7 +35,6 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
           style={{ top: `${8 + i * 20}px` }}
           title={port.label}
           onMouseDown={(e) => {
-            // Prevent the block drag from starting when clicking a port
             e.stopPropagation();
             e.preventDefault();
           }}
@@ -60,7 +60,6 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
           style={{ top: `${8 + i * 20}px` }}
           title={port.label}
           onMouseDown={(e) => {
-            // Prevent the block drag from starting when clicking a port
             e.stopPropagation();
             e.preventDefault();
             onPortMouseDown && onPortMouseDown(e, block.id, port.id);
@@ -75,12 +74,26 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
         </div>
       ))}
 
-      <div className="canvas-block-header" style={{ backgroundColor: block.color, borderRadius: propEntries.length > 0 ? "7px 7px 0 0" : "7px" }}>
+      <div
+        className="canvas-block-header"
+        style={{
+          backgroundColor: block.color,
+          borderRadius: hasBody ? "7px 7px 0 0" : "7px",
+        }}
+      >
         <span className="canvas-block-icon">{block.icon}</span>
         <span>{block.label}</span>
       </div>
-      {propEntries.length > 0 && (
+
+      {hasBody && (
         <div className="canvas-block-body">
+          {block.custom_id && (
+            <div className="canvas-block-varname">
+              <span className="prop-key varname-key">var</span>
+              <code className="prop-val varname-val">{block.custom_id}</code>
+            </div>
+          )}
+
           {propEntries.map(([key, val]) => (
             <div key={key} className="canvas-block-prop">
               <span className="prop-key">{key}</span>

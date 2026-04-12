@@ -21,6 +21,10 @@ import { exportPipeline, getMaxBlockId, stripBlockMeta, hydrateBlocks } from "..
 import { projectsAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 
+const buildCustomIdSet = (blocks) =>
+  // Builds a Set of all custom_id values present in a block array.
+  new Set(blocks.filter((b) => b.custom_id).map((b) => b.custom_id));
+
 const WhiteboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,6 +43,8 @@ const WhiteboardPage = () => {
   const [toast, setToast] = useState(null);
   const cancelTrainingRef = useRef(null);
   const isDirtyRef = useRef(false);
+
+  const customIdSetRef = useRef(new Set());
 
   const [currentProject, setCurrentProject] = useState(null);
   const [authModal, setAuthModal] = useState(null);
@@ -86,6 +92,7 @@ const WhiteboardPage = () => {
     setTrainingSettings({ ...DEFAULT_TRAINING_SETTINGS, ...(imp.trainingSettings ?? {}) });
     setIdCounter(getMaxBlockId(importBlocks));
     setCurrentProject(null);
+    customIdSetRef.current = buildCustomIdSet(importBlocks);
     isDirtyRef.current = true;
 
     const label = imp.sourceName ? `"${imp.sourceName}"` : "Lesson diagram";
@@ -126,6 +133,7 @@ const WhiteboardPage = () => {
     setConnections([]);
     setActivePanel(null);
     setCurrentProject(null);
+    customIdSetRef.current = new Set();
     if (cancelTrainingRef.current) {
       cancelTrainingRef.current();
       cancelTrainingRef.current = null;
@@ -187,6 +195,7 @@ const WhiteboardPage = () => {
     setIdCounter(getMaxBlockId(loadedBlocks));
     setCurrentProject(isTemplate ? null : { id, name });
     setActivePanel(null);
+    customIdSetRef.current = buildCustomIdSet(loadedBlocks);
 
     if (cancelTrainingRef.current) {
       cancelTrainingRef.current();
@@ -215,6 +224,7 @@ const WhiteboardPage = () => {
     setIdCounter(getMaxBlockId(loadedBlocks));
     setCurrentProject(null);
     setActivePanel(null);
+    customIdSetRef.current = buildCustomIdSet(loadedBlocks);
 
     if (cancelTrainingRef.current) {
       cancelTrainingRef.current();
@@ -236,7 +246,7 @@ const WhiteboardPage = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "o") { e.preventDefault(); handleLoad(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); handleViewCode(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleRun(); }
+      // if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleRun(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "i") { e.preventDefault(); setShowImportModal(true); }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -291,9 +301,14 @@ const WhiteboardPage = () => {
               connections={connections}
               setConnections={setConnections}
               onToast={showToast}
+              customIdSetRef={customIdSetRef}
             />
             {activePanel === "code" && (
-              <CodeViewerPanel code={generatedCode} onClose={handleClosePanel} fileName={currentProject?.name}/>
+              <CodeViewerPanel
+                code={generatedCode}
+                onClose={handleClosePanel}
+                fileName={currentProject?.name}
+              />
             )}
             {activePanel === "training" && (
               <TrainingPanel trainingState={trainingState} onClose={handleClosePanel} />

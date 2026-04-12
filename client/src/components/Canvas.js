@@ -4,6 +4,7 @@ import CanvasBlock from "./CanvasBlock";
 import ContextMenu from "./ContextMenu";
 import PropertiesPanel from "./PropertiesPanel";
 import ConnectionLayer from "./ConnectionLayer";
+import RenameBlockModal from "./RenameBlockModal";
 import { getComponentDef } from "../data/mlComponents";
 import { validateConnection } from "../utils/connectionRules";
 
@@ -13,18 +14,31 @@ export const getIdCounter = () => idCounter;
 
 const PAN_CLICK_THRESHOLD = 4;
 
+/**
+ * Canvas
+ *
+ * Props:
+ *   blocks, setBlocks, connections, setConnections, onToast  — existing
+ *   customIdSetRef  — React ref wrapping a Set<string> of all taken custom_ids.
+ *                     Managed by the parent page (WhiteboardPage / LessonPage).
+ *                     Defaults to an inert empty set if omitted.
+ */
 const Canvas = ({
   blocks,
   setBlocks,
   connections,
   setConnections,
   onToast,
+  customIdSetRef = { current: new Set() },
 }) => {
   const [contextMenu, setContextMenu] = useState(null);
   const [editingBlock, setEditingBlock] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [pendingConnection, setPendingConnection] = useState(null);
   const [mousePos, setMousePos] = useState(null);
+
+  // null = modal closed; string = block id whose rename modal is open
+  const [renamingBlockId, setRenamingBlockId] = useState(null);
 
   // Panning state
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -44,6 +58,13 @@ const Canvas = ({
     const def = getComponentDef(b.type);
     if (def) blockDefs[b.type] = def;
   }
+
+  // Derive the block being renamed from ID so we always have fresh data
+  const renamingBlock = renamingBlockId
+    ? blocks.find((b) => b.id === renamingBlockId) ?? null
+    : null;
+
+  // ── Block operations ──────────────────────────────────────────────────────
 
   const addBlock = useCallback((componentDef, x, y) => {
     idCounter++;
@@ -70,6 +91,12 @@ const Canvas = ({
   }, [setBlocks]);
 
   const deleteBlock = useCallback((id) => {
+    // Remove the block's custom_id from the shared set before deletion
+    const target = blocks.find((b) => b.id === id);
+    if (target?.custom_id) {
+      customIdSetRef.current.delete(target.custom_id);
+    }
+
     const affectedConns = connections.filter(
       (c) => c.fromBlockId === id || c.toBlockId === id
     );
@@ -104,13 +131,46 @@ const Canvas = ({
     );
     setContextMenu(null);
     setSelectedId(null);
-  }, [setBlocks, setConnections, connections]);
+  }, [blocks, connections, setBlocks, setConnections, customIdSetRef]);
 
   const updateProperties = useCallback((id, properties) => {
     setBlocks((prev) =>
       prev.map((b) => (b.id === id ? { ...b, properties } : b))
     );
   }, [setBlocks]);
+
+  // ── Rename handling ───────────────────────────────────────────────────────
+
+  /**
+   * handleRename — called by RenameBlockModal on save.
+   * @param {string}      blockId      - The block being renamed
+   * @param {string|null} newCustomId  - New name, or null to clear/reset
+   */
+  const handleRename = useCallback((blockId, newCustomId) => {
+    // Synchronously update the shared uniqueness set
+    const block = blocks.find((b) => b.id === blockId);
+    if (block?.custom_id) {
+      customIdSetRef.current.delete(block.custom_id);
+    }
+    if (newCustomId) {
+      customIdSetRef.current.add(newCustomId);
+    }
+
+    // Update block state
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== blockId) return b;
+        if (newCustomId) {
+          return { ...b, custom_id: newCustomId };
+        }
+        // Remove the field entirely when resetting
+        const { custom_id, ...rest } = b;
+        return rest;
+      })
+    );
+  }, [blocks, setBlocks, customIdSetRef]);
+
+  // ── Drop target ───────────────────────────────────────────────────────────
 
   const [, dropRef] = useDrop({
     accept: ["ML_BLOCK", "CANVAS_BLOCK"],
@@ -130,6 +190,8 @@ const Canvas = ({
       }
     },
   });
+
+  // ── Panning ───────────────────────────────────────────────────────────────
 
   const handlePanMove = useCallback((e) => {
     if (!isPanningRef.current) return;
@@ -188,10 +250,11 @@ const Canvas = ({
     };
 
     document.body.style.userSelect = "none";
-
     window.addEventListener("mousemove", handlePanMove);
     window.addEventListener("mouseup", handlePanUp);
   }, [pendingConnection, handlePanMove, handlePanUp]);
+
+  // ── Connection handling ───────────────────────────────────────────────────
 
   const handleCanvasMouseMove = useCallback((e) => {
     if (!pendingConnection) return;
@@ -342,6 +405,8 @@ const Canvas = ({
     onToast && onToast(`Removed ${matching.length} connection${matching.length > 1 ? "s" : ""}`, "info");
   }, [connections, setConnections, setBlocks, onToast]);
 
+  // ── UI event handlers ─────────────────────────────────────────────────────
+
   const handleContextMenu = (e, id) => {
     e.preventDefault();
     e.stopPropagation();
@@ -350,7 +415,6 @@ const Canvas = ({
   };
 
   const handleCanvasClick = () => {
-    // Suppress click if we just finished a pan drag
     if (didPanRef.current) {
       didPanRef.current = false;
       return;
@@ -384,6 +448,8 @@ const Canvas = ({
     },
     [dropRef]
   );
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -431,7 +497,7 @@ const Canvas = ({
         </div>
       )}
 
-      {/* Recenter button — fixed in bottom-left of canvas */}
+      {/* Recenter button */}
       <button
         className="recenter-btn"
         onClick={handleRecenter}
@@ -447,6 +513,7 @@ const Canvas = ({
         </svg>
       </button>
 
+      {/* Context menu */}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
@@ -455,17 +522,32 @@ const Canvas = ({
             setEditingBlock(blocks.find((b) => b.id === contextMenu.blockId));
             setContextMenu(null);
           }}
+          onRename={() => {
+            setRenamingBlockId(contextMenu.blockId);
+            setContextMenu(null);
+          }}
           onDelete={() => deleteBlock(contextMenu.blockId)}
           onClose={() => setContextMenu(null)}
         />
       )}
 
+      {/* Properties panel */}
       {editingBlock && (
         <PropertiesPanel
           block={editingBlock}
           onSave={updateProperties}
           onClose={() => setEditingBlock(null)}
           lockedProperties={editingBlock.lockedProperties || []}
+        />
+      )}
+
+      {/* Rename modal */}
+      {renamingBlock && (
+        <RenameBlockModal
+          block={renamingBlock}
+          customIdSet={customIdSetRef.current}
+          onSave={handleRename}
+          onClose={() => setRenamingBlockId(null)}
         />
       )}
     </div>
