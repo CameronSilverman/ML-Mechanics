@@ -75,7 +75,7 @@ const CanvasBlock = ({ block, onContextMenu, isSelected, onPortMouseDown, onPort
         </div>
       ))}
 
-      <div className="canvas-block-header" style={{ backgroundColor: block.color }}>
+      <div className="canvas-block-header" style={{ backgroundColor: block.color, borderRadius: propEntries.length > 0 ? "7px 7px 0 0" : "7px" }}>
         <span className="canvas-block-icon">{block.icon}</span>
         <span>{block.label}</span>
       </div>
