@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import { sanitizeFileName } from "../utils/storageManager";
 
 const highlightPython = (code) => {
   const lines = code.split("\n");
@@ -83,7 +84,7 @@ const findStringEnd = (line, start, quote) => {
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 900;
 
-const CodeViewerPanel = ({ code, onClose }) => {
+const CodeViewerPanel = ({ code, onClose, fileName }) => {
   const [copied, setCopied] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
   const isDragging = useRef(false);
@@ -102,7 +103,7 @@ const CodeViewerPanel = ({ code, onClose }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ml_pipeline.py";
+    a.download = `${sanitizeFileName(fileName)}.py`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

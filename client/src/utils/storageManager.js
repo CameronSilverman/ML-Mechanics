@@ -14,6 +14,13 @@ export const hydrateBlocks = (blocks) =>
       icon:  def?.icon  ?? "▣",
     };
   });
+  export const sanitizeFileName = (name) =>
+    (name || "ml_pipeline")
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9_\-]/g, "")
+      || "ml_pipeline";
+    
 
 export const savePipeline = (blocks, connections) => {
   try {
@@ -43,7 +50,7 @@ export const loadPipeline = () => {
   }
 };
 
-export const exportPipeline = (blocks, connections, trainingSettings = null) => {
+export const exportPipeline = (blocks, connections, trainingSettings = null, name = null) => {
   const data = {
     name: "ML Maker Studio Pipeline",
     version: 2,  // v2 = lean format; color/icon omitted and reconstructed on import
@@ -56,7 +63,7 @@ export const exportPipeline = (blocks, connections, trainingSettings = null) => 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "ml-pipeline.json";
+  a.download = `${sanitizeFileName(name)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

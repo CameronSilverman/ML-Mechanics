@@ -198,7 +198,7 @@ const WhiteboardPage = () => {
   }, [showToast]);
 
   const handleExport = useCallback(() => {
-    exportPipeline(blocks, connections, trainingSettings);
+    exportPipeline(blocks, connections, trainingSettings, currentProject?.name);
     showToast("Pipeline exported!", "success");
   }, [blocks, connections, trainingSettings, showToast]);
 
@@ -293,7 +293,7 @@ const WhiteboardPage = () => {
               onToast={showToast}
             />
             {activePanel === "code" && (
-              <CodeViewerPanel code={generatedCode} onClose={handleClosePanel} />
+              <CodeViewerPanel code={generatedCode} onClose={handleClosePanel} fileName={currentProject?.name}/>
             )}
             {activePanel === "training" && (
               <TrainingPanel trainingState={trainingState} onClose={handleClosePanel} />
