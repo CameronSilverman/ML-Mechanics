@@ -37,7 +37,7 @@ export const generateCode = (blocks, trainingSettings = DEFAULT_SETTINGS) => {
 
   const imports = new Set([
     "import tensorflow as tf",
-    "from tensorflow.keras import layers, models",
+    "from keras import layers, models",
   ]);
 
   const blockVars = {};
