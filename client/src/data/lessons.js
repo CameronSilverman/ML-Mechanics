@@ -289,7 +289,7 @@ const LESSONS = [
     },
   },
 
-  // ─── Add more lessons here — only this file needs to change ─────────────────
+  // Add more lessons here - only this file needs to change 
 ];
 
 export default LESSONS;

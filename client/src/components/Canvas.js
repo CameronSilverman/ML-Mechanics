@@ -64,7 +64,7 @@ const Canvas = ({
     ? blocks.find((b) => b.id === renamingBlockId) ?? null
     : null;
 
-  // ── Block operations ──────────────────────────────────────────────────────
+  // Block operations
 
   const addBlock = useCallback((componentDef, x, y) => {
     idCounter++;
@@ -139,7 +139,7 @@ const Canvas = ({
     );
   }, [setBlocks]);
 
-  // ── Rename handling ───────────────────────────────────────────────────────
+  // Rename handling
 
   /**
    * handleRename — called by RenameBlockModal on save.
@@ -170,7 +170,7 @@ const Canvas = ({
     );
   }, [blocks, setBlocks, customIdSetRef]);
 
-  // ── Drop target ───────────────────────────────────────────────────────────
+  // Drop target
 
   const [, dropRef] = useDrop({
     accept: ["ML_BLOCK", "CANVAS_BLOCK"],
@@ -191,7 +191,7 @@ const Canvas = ({
     },
   });
 
-  // ── Panning ───────────────────────────────────────────────────────────────
+  // Panning
 
   const handlePanMove = useCallback((e) => {
     if (!isPanningRef.current) return;
@@ -254,7 +254,7 @@ const Canvas = ({
     window.addEventListener("mouseup", handlePanUp);
   }, [pendingConnection, handlePanMove, handlePanUp]);
 
-  // ── Connection handling ───────────────────────────────────────────────────
+  // Connection handling
 
   const handleCanvasMouseMove = useCallback((e) => {
     if (!pendingConnection) return;
@@ -405,7 +405,7 @@ const Canvas = ({
     onToast && onToast(`Removed ${matching.length} connection${matching.length > 1 ? "s" : ""}`, "info");
   }, [connections, setConnections, setBlocks, onToast]);
 
-  // ── UI event handlers ─────────────────────────────────────────────────────
+  // UI event handlers
 
   const handleContextMenu = (e, id) => {
     e.preventDefault();
@@ -449,7 +449,7 @@ const Canvas = ({
     [dropRef]
   );
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Render
 
   return (
     <div

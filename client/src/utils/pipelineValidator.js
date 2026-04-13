@@ -87,3 +87,86 @@ export const topologicalSortFromBlocks = (blocks) => {
   }
   return sorted;
 };
+
+// Branch-aware topological sort
+// Used for grouping layers in generated code
+export const branchAwareSort = (blocks) => {
+  const blockMap = {};
+  const childrenOf = {};
+  const parentsOf = {};
+
+  for (const b of blocks) {
+    blockMap[b.id] = b;
+    childrenOf[b.id] = [];
+    parentsOf[b.id] = [];
+  }
+
+  // Build adjacency from connectedOutputs - preserves the ordering the user
+  // created on the canvas (which output target was added first).
+  for (const b of blocks) {
+    for (const targets of Object.values(b.connectedOutputs || {})) {
+      for (const t of targets) {
+        if (blockMap[t.targetBlockId]) {
+          childrenOf[b.id].push(t.targetBlockId);
+          parentsOf[t.targetBlockId].push(b.id);
+        }
+      }
+    }
+  }
+
+  const visited = new Set();
+  const groups = [];
+  let current = [];
+
+  const flush = () => {
+    if (current.length > 0) {
+      groups.push(current);
+      current = [];
+    }
+  };
+
+  const canVisit = (id) => parentsOf[id].every((p) => visited.has(p));
+
+  const visit = (id) => {
+    if (visited.has(id) || !canVisit(id)) return;
+
+    // Merge point — start a new group so the merged tail is separated
+    if (parentsOf[id].length > 1) {
+      flush();
+    }
+
+    visited.add(id);
+    current.push(blockMap[id]);
+
+    const kids = childrenOf[id].filter((k) => !visited.has(k));
+
+    if (kids.length <= 1) {
+      // Linear chain or terminal — continue in the same group
+      for (const kid of kids) visit(kid);
+    } else {
+      // Fork point — each child becomes a separate branch group
+      flush();
+      for (const kid of kids) {
+        visit(kid);
+        flush();
+      }
+    }
+  };
+
+  // Start from roots (nodes with no parents)
+  const roots = blocks.filter((b) => parentsOf[b.id].length === 0);
+  for (const root of roots) {
+    visit(root.id);
+    flush();
+  }
+
+  // Safety net: any unvisited nodes (e.g. disconnected cycles)
+  for (const b of blocks) {
+    if (!visited.has(b.id)) {
+      visit(b.id);
+      flush();
+    }
+  }
+
+  return groups;
+};
