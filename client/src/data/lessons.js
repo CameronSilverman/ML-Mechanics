@@ -295,3 +295,30 @@ const LESSONS = [
 export default LESSONS;
 
 export const getLessonById = (id) => LESSONS.find((l) => l.id === id) || null;
+
+/**
+ * Courses — ordered groups of lessons around a common topic.
+ *
+ * Course shape:
+ * {
+ *   id:          string
+ *   title:       string
+ *   description: string        — shown on the course card
+ *   lessonIds:   string[]      — ordered list; the same lesson may appear in multiple courses
+ * }
+ *
+ * To add a course: push a new object to COURSES. No other file needs changes.
+ */
+export const COURSES = [
+  {
+    id: "ml-foundations",
+    title: "ML Foundations",
+    description:
+      "Start from zero. This course walks you through the core building blocks " +
+      "of neural networks — inputs, dense layers, activations, and training — " +
+      "using hands-on pipeline exercises.",
+    lessonIds: ["dense-intro"],
+  },
+];
+
+export const getCourseById = (id) => COURSES.find((c) => c.id === id) || null;

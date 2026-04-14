@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import LESSONS from "../data/lessons";
+import LESSONS, { COURSES } from "../data/lessons";
 
 const DIFFICULTY_STYLE = {
   beginner: {
@@ -18,6 +18,68 @@ const DIFFICULTY_STYLE = {
     color: "#fca5a5",
     borderColor: "rgba(239, 68, 68, 0.3)",
   },
+};
+
+const DIFFICULTY_RANK = { beginner: 0, intermediate: 1, advanced: 2 };
+const DIFFICULTY_LABEL = ["beginner", "intermediate", "advanced"];
+
+const courseDifficulty = (lessons) => {
+  const max = Math.max(...lessons.map((l) => DIFFICULTY_RANK[l.difficulty] ?? 0));
+  return DIFFICULTY_LABEL[max] ?? "beginner";
+};
+
+const CourseCard = ({ course, index }) => {
+  const lessonMap = Object.fromEntries(LESSONS.map((l) => [l.id, l]));
+  const lessons = course.lessonIds
+    .map((id) => lessonMap[id])
+    .filter(Boolean);
+
+  const firstLesson = lessons[0];
+  const diff = courseDifficulty(lessons);
+  const diffStyle = DIFFICULTY_STYLE[diff] || DIFFICULTY_STYLE.beginner;
+  const totalMinutes = lessons.reduce((s, l) => s + (l.estimatedMinutes || 0), 0);
+
+  return (
+    <div className="course-card" style={{ animationDelay: `${index * 0.07}s` }}>
+      <div className="course-card-main">
+        <div className="course-card-top">
+          <span className="learn-difficulty-badge" style={diffStyle}>{diff}</span>
+          <span className="course-card-meta">
+            {lessons.length} lesson{lessons.length !== 1 ? "s" : ""} · ~{totalMinutes} min
+          </span>
+        </div>
+
+        <h3 className="course-card-title">{course.title}</h3>
+        <p className="course-card-desc">{course.description}</p>
+
+        <ol className="course-lesson-list">
+          {lessons.map((lesson, i) => {
+            const d = DIFFICULTY_STYLE[lesson.difficulty] || DIFFICULTY_STYLE.beginner;
+            return (
+              <li key={lesson.id} className="course-lesson-row">
+                <span className="course-lesson-num">{i + 1}</span>
+                <span className="course-lesson-title">{lesson.title}</span>
+                <span
+                  className="course-lesson-diff"
+                  style={{ color: d.color }}
+                >
+                  {lesson.difficulty}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <div className="course-card-footer">
+        {firstLesson && (
+          <Link to={`/learn/${firstLesson.id}`} className="course-start-btn">
+            Start Course →
+          </Link>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const LessonCard = ({ lesson, index }) => {
@@ -58,9 +120,7 @@ const LessonCard = ({ lesson, index }) => {
             />
           ))}
         </div>
-        <span className="learn-card-cta">
-          Start →
-        </span>
+        <span className="learn-card-cta">Start →</span>
       </div>
     </Link>
   );
@@ -105,22 +165,43 @@ const LearnPage = () => {
           </p>
         </div>
 
-        {/* Lesson categories */}
-        {Object.entries(byCategory).map(([category, lessons]) => (
-          <section key={category} className="learn-category-section">
+        {/* Courses */}
+        {COURSES.length > 0 && (
+          <section className="learn-category-section">
             <div className="learn-category-header">
-              <span className="learn-category-name">{category}</span>
+              <span className="learn-category-name">◈ Courses</span>
               <span className="learn-category-count">
-                {lessons.length} lesson{lessons.length !== 1 ? "s" : ""}
+                {COURSES.length} course{COURSES.length !== 1 ? "s" : ""}
               </span>
             </div>
-            <div className="learn-card-grid">
-              {lessons.map((lesson, i) => (
-                <LessonCard key={lesson.id} lesson={lesson} index={i} />
+            <div className="course-card-grid">
+              {COURSES.map((course, i) => (
+                <CourseCard key={course.id} course={course} index={i} />
               ))}
             </div>
           </section>
-        ))}
+        )}
+
+        {/* Individual lessons grouped by category */}
+        <section className="learn-category-section">
+          <div className="learn-category-header">
+            <span className="learn-category-name">◧ All Lessons</span>
+            <span className="learn-category-count">
+              {LESSONS.length} lesson{LESSONS.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {Object.entries(byCategory).map(([category, lessons]) => (
+            <div key={category} className="learn-subcategory">
+              <div className="learn-subcategory-label">{category}</div>
+              <div className="learn-card-grid">
+                {lessons.map((lesson, i) => (
+                  <LessonCard key={lesson.id} lesson={lesson} index={i} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
       </div>
     </div>
   );
