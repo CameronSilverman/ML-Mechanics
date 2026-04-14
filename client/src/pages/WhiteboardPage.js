@@ -96,6 +96,7 @@ const WhiteboardPage = () => {
     setCurrentProject(null);
     customIdSetRef.current = buildCustomIdSet(importBlocks);
     isDirtyRef.current = true;
+    setRecenterTrigger((t) => t + 1);
 
     const label = imp.sourceName ? `"${imp.sourceName}"` : "Lesson diagram";
     showToast(`${label} opened in workspace — save to keep your changes`, "success");
