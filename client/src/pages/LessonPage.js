@@ -144,9 +144,10 @@ const ContentBlock = ({ block }) => {
       );
     case "image": {
       // scale: 0–1 fraction of container width (default: natural size, capped at 100%)
-      const imgStyle = block.scale != null
-        ? { maxWidth: `${Math.min(1, block.scale) * 100}%` }
-        : undefined;
+      const imgStyle = {
+        ...(block.scale != null && { maxWidth: `${Math.min(1, block.scale) * 100}%` }),
+        ...(block.background != null && { background: block.background }),
+      };
       return (
         <figure className="lc-figure">
           <img
@@ -154,7 +155,7 @@ const ContentBlock = ({ block }) => {
             alt={block.alt || ""}
             className="lc-image"
             loading="lazy"
-            style={imgStyle}
+            style={Object.keys(imgStyle).length ? imgStyle : undefined}
           />
           {block.caption && <figcaption className="lc-caption">{block.caption}</figcaption>}
         </figure>

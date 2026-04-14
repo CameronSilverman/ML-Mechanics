@@ -42,9 +42,11 @@
  *   { type: "code", language?: string, body: string }
  *     Syntax-highlighted code snippet (Python highlighting built in).
  *
- *   { type: "image", src: string, alt?: string, caption?: string, scale?: number }
- *     Inline figure. scale is a 0–1 fraction of container width; omit to render
- *     at natural size (capped at container width). src can be a relative path or URL.
+ *   { type: "image", src: string, alt?: string, caption?: string, scale?: number, background?: string }
+ *     Inline figure. scale is a 0–1 fraction of container width; omit to render at natural
+ *     size (capped at container width). background is any CSS color value — overrides the
+ *     default dark fill that shows through transparent/semi-transparent images
+ *     (e.g. background: "white" or background: "transparent").
  *
  *   { type: "video", src: string, caption?: string, scale?: number }
  *     <video> element with controls. scale behaves the same as for images.
@@ -119,6 +121,7 @@ const LESSONS = [
         alt: "Diagram of a fully connected neural network",
         caption:
           "A fully connected network: every node in one layer connects to every node in the next.",
+        background: "rgba(255, 255, 255, 0.85)"
       },
       {
         type: "heading",
