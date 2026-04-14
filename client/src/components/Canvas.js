@@ -13,6 +13,9 @@ export const setIdCounter = (val) => { idCounter = val; };
 export const getIdCounter = () => idCounter;
 
 const PAN_CLICK_THRESHOLD = 4;
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 2.0;
+const SCALE_STEP = 0.1; // for +/- buttons
 
 /**
  * Canvas
@@ -49,9 +52,17 @@ const Canvas = ({
   const canvasRef = useRef(null);
   const [panningClass, setPanningClass] = useState(false);
 
+  // Zoom state
+  const [scale, setScale] = useState(1.0);
+  const scaleRef = useRef(1.0);
+
   useEffect(() => {
     panRef.current = pan;
   }, [pan]);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
   const blockDefs = {};
   for (const b of blocks) {
@@ -141,13 +152,7 @@ const Canvas = ({
 
   // Rename handling
 
-  /**
-   * handleRename — called by RenameBlockModal on save.
-   * @param {string}      blockId      - The block being renamed
-   * @param {string|null} newCustomId  - New name, or null to clear/reset
-   */
   const handleRename = useCallback((blockId, newCustomId) => {
-    // Synchronously update the shared uniqueness set
     const block = blocks.find((b) => b.id === blockId);
     if (block?.custom_id) {
       customIdSetRef.current.delete(block.custom_id);
@@ -163,7 +168,6 @@ const Canvas = ({
         if (newCustomId) {
           return { ...b, custom_id: newCustomId };
         }
-        // Remove the field entirely when resetting
         const { custom_id, ...rest } = b;
         return rest;
       })
@@ -179,17 +183,53 @@ const Canvas = ({
       const canvasEl = document.getElementById("canvas");
       const canvasRect = canvasEl.getBoundingClientRect();
       const currentPan = panRef.current;
+      const currentScale = scaleRef.current;
 
       if (item.componentDef) {
-        const x = offset.x - canvasRect.left - currentPan.x - 80;
-        const y = offset.y - canvasRect.top - currentPan.y - 20;
+        const x = (offset.x - canvasRect.left - currentPan.x) / currentScale - 80;
+        const y = (offset.y - canvasRect.top  - currentPan.y) / currentScale - 20;
         addBlock(item.componentDef, x, y);
       } else if (item.id) {
         const delta = monitor.getDifferenceFromInitialOffset();
-        moveBlock(item.id, item.x + delta.x, item.y + delta.y);
+        moveBlock(item.id, item.x + delta.x / currentScale, item.y + delta.y / currentScale);
       }
     },
   });
+
+  // Zoom helpers
+
+  const clampScale = (s) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+
+  const zoomAt = useCallback((newScale, fx, fy) => {
+    newScale = clampScale(newScale);
+    const oldScale = scaleRef.current;
+    if (newScale === oldScale) return;
+
+    setPan((prev) => ({
+      x: fx - (fx - prev.x) * (newScale / oldScale),
+      y: fy - (fy - prev.y) * (newScale / oldScale),
+    }));
+    setScale(newScale);
+  }, []);
+
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    const fx = e.clientX - rect.left;
+    const fy = e.clientY - rect.top;
+
+    const delta = e.deltaY < 0 ? 1 : -1;
+    const factor = 1 + delta * 0.1;
+    zoomAt(scaleRef.current * factor, fx, fy);
+  }, [zoomAt]);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   // Panning
 
@@ -261,8 +301,8 @@ const Canvas = ({
     const canvasEl = document.getElementById("canvas");
     const rect = canvasEl.getBoundingClientRect();
     setMousePos({
-      x: e.clientX - rect.left - panRef.current.x,
-      y: e.clientY - rect.top - panRef.current.y,
+      x: (e.clientX - rect.left - panRef.current.x) / scaleRef.current,
+      y: (e.clientY - rect.top  - panRef.current.y) / scaleRef.current,
     });
   }, [pendingConnection]);
 
@@ -276,14 +316,14 @@ const Canvas = ({
   const handlePortMouseDown = useCallback((e, blockId, portId) => {
     const block = blocks.find((b) => b.id === blockId);
     if (!block) return;
-    const canvasEl = document.getElementById("canvas");
-    const rect = canvasEl.getBoundingClientRect();
     const portX = block.x + 170 + 6;
     const portY = block.y + 16;
     setPendingConnection({ blockId, portId, x: portX, y: portY });
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
     setMousePos({
-      x: e.clientX - rect.left - panRef.current.x,
-      y: e.clientY - rect.top - panRef.current.y,
+      x: (e.clientX - rect.left - panRef.current.x) / scaleRef.current,
+      y: (e.clientY - rect.top  - panRef.current.y) / scaleRef.current,
     });
   }, [blocks]);
 
@@ -427,6 +467,7 @@ const Canvas = ({
     e.stopPropagation();
     if (blocks.length === 0) {
       setPan({ x: 0, y: 0 });
+      setScale(1.0);
       return;
     }
     const canvasEl = document.getElementById("canvas");
@@ -435,11 +476,36 @@ const Canvas = ({
     const maxX = Math.max(...blocks.map((b) => b.x + 170));
     const minY = Math.min(...blocks.map((b) => b.y));
     const maxY = Math.max(...blocks.map((b) => b.y + 100));
+    const newScale = 1.0;
+    setScale(newScale);
     setPan({
-      x: rect.width / 2 - (minX + maxX) / 2,
-      y: rect.height / 2 - (minY + maxY) / 2,
+      x: rect.width  / 2 - (minX + maxX) / 2 * newScale,
+      y: rect.height / 2 - (minY + maxY) / 2 * newScale,
     });
   }, [blocks]);
+
+  // Zoom control handlers
+
+  const handleZoomIn = useCallback((e) => {
+    e.stopPropagation();
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    zoomAt(scaleRef.current + SCALE_STEP, rect.width / 2, rect.height / 2);
+  }, [zoomAt]);
+
+  const handleZoomOut = useCallback((e) => {
+    e.stopPropagation();
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    zoomAt(scaleRef.current - SCALE_STEP, rect.width / 2, rect.height / 2);
+  }, [zoomAt]);
+
+  const handleSliderChange = useCallback((e) => {
+    const newScale = parseFloat(e.target.value);
+    const canvasEl = document.getElementById("canvas");
+    const rect = canvasEl.getBoundingClientRect();
+    zoomAt(newScale, rect.width / 2, rect.height / 2);
+  }, [zoomAt]);
 
   const setRef = useCallback(
     (node) => {
@@ -464,7 +530,7 @@ const Canvas = ({
     >
       <div
         className="canvas-world"
-        style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
+        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}
       >
         <ConnectionLayer
           blocks={blocks}
@@ -497,21 +563,53 @@ const Canvas = ({
         </div>
       )}
 
-      {/* Recenter button */}
-      <button
-        className="recenter-btn"
-        onClick={handleRecenter}
-        title="Recenter view"
-      >
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="9" cy="9" r="2" fill="currentColor" />
-          <line x1="9" y1="0.5" x2="9" y2="4" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="9" y1="14" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="0.5" y1="9" x2="4" y2="9" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="14" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </button>
+      <div className="canvas-controls">
+        <button
+          className="zoom-btn"
+          onClick={handleZoomIn}
+          title="Zoom in"
+          disabled={scale >= MAX_SCALE}
+        >
+          +
+        </button>
+
+        <input
+          type="range"
+          className="zoom-slider"
+          min={MIN_SCALE}
+          max={MAX_SCALE}
+          step={0.01}
+          value={scale}
+          onChange={handleSliderChange}
+          onClick={(e) => e.stopPropagation()}
+          title={`Zoom: ${Math.round(scale * 100)}%`}
+          orient="vertical"
+        />
+
+        <button
+          className="zoom-btn"
+          onClick={handleZoomOut}
+          title="Zoom out"
+          disabled={scale <= MIN_SCALE}
+        >
+          −
+        </button>
+
+        <button
+          className="recenter-btn"
+          onClick={handleRecenter}
+          title="Recenter view"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="9" cy="9" r="2" fill="currentColor" />
+            <line x1="9" y1="0.5" x2="9" y2="4" stroke="currentColor" strokeWidth="1.5" />
+            <line x1="9" y1="14" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" />
+            <line x1="0.5" y1="9" x2="4" y2="9" stroke="currentColor" strokeWidth="1.5" />
+            <line x1="14" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+      </div>
 
       {/* Context menu */}
       {contextMenu && (
