@@ -42,11 +42,12 @@
  *   { type: "code", language?: string, body: string }
  *     Syntax-highlighted code snippet (Python highlighting built in).
  *
- *   { type: "image", src: string, alt?: string, caption?: string }
- *     Inline figure. src can be a relative path or a full URL.
+ *   { type: "image", src: string, alt?: string, caption?: string, scale?: number }
+ *     Inline figure. scale is a 0–1 fraction of container width; omit to render
+ *     at natural size (capped at container width). src can be a relative path or URL.
  *
- *   { type: "video", src: string, caption?: string }
- *     <video> element with controls.
+ *   { type: "video", src: string, caption?: string, scale?: number }
+ *     <video> element with controls. scale behaves the same as for images.
  *
  *   { type: "divider" }
  *     Horizontal rule.

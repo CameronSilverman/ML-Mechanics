@@ -2655,6 +2655,7 @@ body {
   color: var(--text-secondary);
   line-height: 1.75;
   margin: 0;
+  overflow-wrap: break-word;
 }
 
 .lc-heading {
@@ -2736,19 +2737,18 @@ body {
 }
 
 .lc-image {
-  width: 100%;
+  width: auto;
   max-width: 100%;
+  height: auto;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   display: block;
-  /* Neutral dark background while images load */
-  min-height: 80px;
-  object-fit: contain;
 }
 
 .lc-video {
   width: 100%;
+  height: auto;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: #000;

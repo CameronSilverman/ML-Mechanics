@@ -142,17 +142,35 @@ const ContentBlock = ({ block }) => {
           <pre className="lc-code-block code-block">{highlightPy(block.body)}</pre>
         </div>
       );
-    case "image":
+    case "image": {
+      // scale: 0–1 fraction of container width (default: natural size, capped at 100%)
+      const imgStyle = block.scale != null
+        ? { maxWidth: `${Math.min(1, block.scale) * 100}%` }
+        : undefined;
       return (
         <figure className="lc-figure">
-          <img src={block.src} alt={block.alt || ""} className="lc-image" loading="lazy" />
+          <img
+            src={block.src}
+            alt={block.alt || ""}
+            className="lc-image"
+            loading="lazy"
+            style={imgStyle}
+          />
           {block.caption && <figcaption className="lc-caption">{block.caption}</figcaption>}
         </figure>
       );
+    }
     case "video":
       return (
         <figure className="lc-figure">
-          <video src={block.src} controls className="lc-video" />
+          <video
+            src={block.src}
+            controls
+            className="lc-video"
+            style={block.scale != null
+              ? { maxWidth: `${Math.min(1, block.scale) * 100}%` }
+              : undefined}
+          />
           {block.caption && <figcaption className="lc-caption">{block.caption}</figcaption>}
         </figure>
       );
