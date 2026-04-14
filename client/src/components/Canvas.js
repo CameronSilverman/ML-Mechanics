@@ -33,6 +33,7 @@ const Canvas = ({
   setConnections,
   onToast,
   customIdSetRef = { current: new Set() },
+  recenterTrigger = 0,
 }) => {
   const [contextMenu, setContextMenu] = useState(null);
   const [editingBlock, setEditingBlock] = useState(null);
@@ -463,8 +464,7 @@ const Canvas = ({
     setContextMenu(null);
   };
 
-  const handleRecenter = useCallback((e) => {
-    e.stopPropagation();
+  const recenterView = useCallback(() => {
     if (blocks.length === 0) {
       setPan({ x: 0, y: 0 });
       setScale(1.0);
@@ -476,13 +476,22 @@ const Canvas = ({
     const maxX = Math.max(...blocks.map((b) => b.x + 170));
     const minY = Math.min(...blocks.map((b) => b.y));
     const maxY = Math.max(...blocks.map((b) => b.y + 100));
-    const newScale = 1.0;
-    setScale(newScale);
+    setScale(1.0);
     setPan({
-      x: rect.width  / 2 - (minX + maxX) / 2 * newScale,
-      y: rect.height / 2 - (minY + maxY) / 2 * newScale,
+      x: rect.width  / 2 - (minX + maxX) / 2,
+      y: rect.height / 2 - (minY + maxY) / 2,
     });
   }, [blocks]);
+
+  const handleRecenter = useCallback((e) => {
+    e?.stopPropagation();
+    recenterView();
+  }, [recenterView]);
+
+  useEffect(() => {
+    if (recenterTrigger === 0) return;
+    recenterView();
+  }, [recenterTrigger]);
 
   // Zoom control handlers
 

@@ -54,6 +54,8 @@ const WhiteboardPage = () => {
 
   const lessonImportRef = useRef(location.state?.lessonImport ?? null);
 
+  const [recenterTrigger, setRecenterTrigger] = useState(0);
+
   useEffect(() => {
     setWarnings(checkPipelineWarnings(blocks, connections, trainingSettings));
   }, [blocks, connections, trainingSettings]);
@@ -203,6 +205,7 @@ const WhiteboardPage = () => {
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     isDirtyRef.current = isTemplate;
+    setRecenterTrigger((t) => t + 1);
     showToast(isTemplate ? `Template "${name}" loaded` : `"${name}" loaded`, "success");
   }, [showToast]);
 
@@ -232,7 +235,7 @@ const WhiteboardPage = () => {
     }
     setTrainingState({ status: "idle", currentEpoch: 0, totalEpochs: 0, history: null, summary: null });
     isDirtyRef.current = true;
-
+    setRecenterTrigger((t) => t + 1);
     showToast(`"${parsed.name || "Pipeline"}" imported — save to keep your changes`, "success");
   }, [showToast]);
 
@@ -302,6 +305,7 @@ const WhiteboardPage = () => {
               setConnections={setConnections}
               onToast={showToast}
               customIdSetRef={customIdSetRef}
+              recenterTrigger={recenterTrigger}
             />
             {activePanel === "code" && (
               <CodeViewerPanel
